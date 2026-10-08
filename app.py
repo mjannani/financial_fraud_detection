@@ -1,95 +1,115 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-import plotly.io as pio
-import joblib
+            drift_df,
+            use_container_width=True,
+        )
 
-from sklearn.model_selection import train_test_split
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.impute import SimpleImputer
-from sklearn.ensemble import RandomForestClassifier, IsolationForest
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    confusion_matrix,
-    classification_report,
-    roc_curve,
-)
+        fig = px.bar(
+            drift_df.head(20),
+            x="Drift %",
+            y="Feature",
+            orientation="h",
+            title="Top Feature Distribution Changes",
+        )
 
-from imblearn.over_sampling import SMOTE
+        fig.update_layout(
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font_color="#111827",
+        )
 
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+        )
 
-# ============================================================
-# PAGE CONFIG
-# ============================================================
-
-st.set_page_config(
-    page_title="Financial Fraud Intelligence",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-pio.templates.default = "plotly_white"
+    st.info(
+        "This monitoring page provides a simple analytical drift indicator "
+        "by comparing feature means. It is intended for project monitoring, "
+        "not production regulatory monitoring."
+    )
 
 
 # ============================================================
-# FIXED LIGHT THEME CSS
+# DATASET EXPLORER
 # ============================================================
 
-st.markdown(
-    """
-<style>
+elif page == "📋 Dataset Explorer":
 
-/* =========================================================
-   GLOBAL APP
-   ========================================================= */
+    st.title(
+        "📋 Dataset Explorer"
+    )
 
-html,
-body,
-[data-testid="stAppViewContainer"],
-[data-testid="stAppViewContainer"] > div,
-.stApp {
-    background-color: #f5f7fb !important;
-    color: #111827 !important;
-}
+    c1, c2, c3, c4 = st.columns(4)
 
-/* Main content area */
-[data-testid="stAppViewContainer"] .main {
-    background-color: #f5f7fb !important;
-    color: #111827 !important;
-}
+    c1.metric(
+        "Rows",
+        f"{df.shape[0]:,}",
+    )
 
-/* Main block */
-[data-testid="stAppViewContainer"] .main .block-container {
-    background-color: #f5f7fb !important;
-    color: #111827 !important;
-    padding-top: 2.5rem !important;
-    padding-bottom: 3rem !important;
-}
+    c2.metric(
+        "Columns",
+        df.shape[1],
+    )
 
+    c3.metric(
+        "Duplicates",
+        f"{df.duplicated().sum():,}",
+    )
 
-/* =========================================================
-   FORCE MAIN TEXT TO DARK
-   ========================================================= */
+    c4.metric(
+        "Missing Values",
+        f"{df.isnull().sum().sum():,}",
+    )
 
-[data-testid="stAppViewContainer"] .main p,
-[data-testid="stAppViewContainer"] .main span,
-[data-testid="stAppViewContainer"] .main label,
-[data-testid="stAppViewContainer"] .main li,
-[data-testid="stAppViewContainer"] .main small,
-[data-testid="stAppViewContainer"] .main div {
-    color: #111827;
-}
+    st.subheader(
+        "Dataset Preview"
+    )
 
-/* Markdown text */
-[data-testid="stMarkdownContainer"] {
-    color: #111827 !important;
-}
+    st.dataframe(
+        df.head(100),
+        use_container_width=True,
+    )
+
+    st.subheader(
+        "Column Information"
+    )
+
+    info = pd.DataFrame(
+        {
+            "Column": df.columns,
+            "Data Type": [
+                str(dtype)
+                for dtype in df.dtypes
+            ],
+            "Missing": [
+                df[c].isnull().sum()
+                for c in df.columns
+            ],
+            "Unique": [
+                df[c].nunique()
+                for c in df.columns
+            ],
+        }
+    )
+
+    st.dataframe(
+        info,
+        use_container_width=True,
+    )
+
+    st.subheader(
+        "Statistical Summary"
+    )
+
+    st.dataframe(
+        df.describe(
+            include="all"
+        ).transpose(),
+        use_container_width=True,
+    )
+
+    st.download_button(
+        "📥 Download Dataset",
+        df.to_csv(index=False),
+        "financial_fraud_dataset.csv",
+        "text/csv",
+    )
