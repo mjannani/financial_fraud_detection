@@ -39,6 +39,379 @@ st.set_page_config(
 )
 
 
+#  ============================================================
+# CUSTOM CSS - FIXED VISIBILITY
+# ============================================================
+
+st.markdown("""
+<style>
+
+/* ============================================================
+   MAIN APP BACKGROUND
+   ============================================================ */
+
+.stApp {
+    background-color: #f5f7fb !important;
+}
+
+/* Main content area */
+[data-testid="stAppViewContainer"] .main {
+    background-color: #f5f7fb !important;
+}
+
+/* Main block container */
+[data-testid="stAppViewContainer"] .main .block-container {
+    background-color: #f5f7fb !important;
+}
+
+
+/* ============================================================
+   MAIN CONTENT TEXT
+   IMPORTANT: Do NOT apply this to sidebar
+   ============================================================ */
+
+/* Normal markdown text */
+[data-testid="stAppViewContainer"] .main
+[data-testid="stMarkdownContainer"] p {
+    color: #111827 !important;
+}
+
+/* Markdown headings */
+[data-testid="stAppViewContainer"] .main
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stAppViewContainer"] .main
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stAppViewContainer"] .main
+[data-testid="stMarkdownContainer"] h3,
+[data-testid="stAppViewContainer"] .main
+[data-testid="stMarkdownContainer"] h4,
+[data-testid="stAppViewContainer"] .main
+[data-testid="stMarkdownContainer"] h5,
+[data-testid="stAppViewContainer"] .main
+[data-testid="stMarkdownContainer"] h6 {
+    color: #111827 !important;
+}
+
+/* General main content text */
+[data-testid="stAppViewContainer"] .main p,
+[data-testid="stAppViewContainer"] .main li,
+[data-testid="stAppViewContainer"] .main label {
+    color: #111827 !important;
+}
+
+/* Main headings */
+[data-testid="stAppViewContainer"] .main h1,
+[data-testid="stAppViewContainer"] .main h2,
+[data-testid="stAppViewContainer"] .main h3,
+[data-testid="stAppViewContainer"] .main h4 {
+    color: #111827 !important;
+}
+
+
+/* ============================================================
+   METRIC CARDS
+   ============================================================ */
+
+[data-testid="stMetric"] {
+    background-color: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 14px !important;
+    padding: 18px !important;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Metric label */
+[data-testid="stMetric"] [data-testid="stMetricLabel"],
+[data-testid="stMetric"] [data-testid="stMetricLabel"] *,
+[data-testid="stMetric"] label,
+[data-testid="stMetric"] label * {
+    color: #4b5563 !important;
+    font-weight: 600 !important;
+}
+
+/* Metric value */
+[data-testid="stMetric"] [data-testid="stMetricValue"],
+[data-testid="stMetric"] [data-testid="stMetricValue"] *,
+[data-testid="stMetric"] [data-testid="stMetricValue"] div,
+[data-testid="stMetric"] [data-testid="stMetricValue"] span {
+    color: #111827 !important;
+    font-weight: 700 !important;
+}
+
+/* Metric delta */
+[data-testid="stMetric"] [data-testid="stMetricDelta"],
+[data-testid="stMetric"] [data-testid="stMetricDelta"] * {
+    color: #374151 !important;
+}
+
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+
+[data-testid="stSidebar"] {
+    background-color: #111827 !important;
+}
+
+/* Sidebar text */
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] div,
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] h4 {
+    color: #ffffff !important;
+}
+
+/* Sidebar title */
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
+    color: #ffffff !important;
+}
+
+
+/* ============================================================
+   SIDEBAR FILE UPLOADER
+   ============================================================ */
+
+[data-testid="stSidebar"] [data-testid="stFileUploader"] {
+    background-color: #0b1220 !important;
+    border-radius: 10px !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stFileUploader"] section {
+    background-color: #0b1220 !important;
+    border-color: #374151 !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stFileUploader"] button {
+    background-color: #374151 !important;
+    color: #ffffff !important;
+    border: 1px solid #4b5563 !important;
+}
+
+
+/* ============================================================
+   SIDEBAR SELECTBOX / RADIO
+   ============================================================ */
+
+[data-testid="stSidebar"] [data-baseweb="select"] {
+    background-color: #111827 !important;
+}
+
+[data-testid="stSidebar"] [data-baseweb="select"] * {
+    color: #ffffff !important;
+}
+
+[data-testid="stSidebar"] [role="radiogroup"] label {
+    color: #ffffff !important;
+}
+
+
+/* ============================================================
+   MAIN SELECTBOX
+   ============================================================ */
+
+[data-testid="stAppViewContainer"] .main
+[data-baseweb="select"] {
+    background-color: #ffffff !important;
+}
+
+[data-testid="stAppViewContainer"] .main
+[data-baseweb="select"] * {
+    color: #111827 !important;
+}
+
+
+/* ============================================================
+   TEXT INPUT / NUMBER INPUT
+   ============================================================ */
+
+[data-testid="stAppViewContainer"] .main input,
+[data-testid="stAppViewContainer"] .main textarea {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+}
+
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+[data-testid="stAppViewContainer"] .main button {
+    color: #ffffff !important;
+    background-color: #2563eb !important;
+    border-radius: 8px !important;
+    border: none !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="stAppViewContainer"] .main button:hover {
+    background-color: #1d4ed8 !important;
+}
+
+
+/* ============================================================
+   DATAFRAME
+   ============================================================ */
+
+[data-testid="stDataFrame"] {
+    background-color: #ffffff !important;
+}
+
+
+/* ============================================================
+   ALERT / INFO / WARNING / ERROR BOXES
+   ============================================================ */
+
+[data-testid="stAlert"] p,
+[data-testid="stAlert"] span,
+[data-testid="stAlert"] div {
+    color: #111827 !important;
+}
+
+
+/* ============================================================
+   EXPANDERS
+   ============================================================ */
+
+[data-testid="stExpander"] {
+    background-color: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 10px !important;
+}
+
+[data-testid="stExpander"] p,
+[data-testid="stExpander"] span,
+[data-testid="stExpander"] label {
+    color: #111827 !important;
+}
+
+
+/* ============================================================
+   CAPTION
+   ============================================================ */
+
+[data-testid="stAppViewContainer"] .main
+[data-testid="stCaptionContainer"] {
+    color: #4b5563 !important;
+}
+
+[data-testid="stAppViewContainer"] .main
+[data-testid="stCaptionContainer"] * {
+    color: #4b5563 !important;
+}
+
+
+/* ============================================================
+   DIVIDER
+   ============================================================ */
+
+[data-testid="stAppViewContainer"] .main hr {
+    border-color: #d1d5db !important;
+}
+
+
+/* ============================================================
+   LINKS
+   ============================================================ */
+
+[data-testid="stAppViewContainer"] .main a {
+    color: #2563eb !important;
+}
+
+
+/* ============================================================
+   SLIDER
+   ============================================================ */
+
+[data-testid="stAppViewContainer"] .main
+[data-testid="stSlider"] label {
+    color: #111827 !important;
+}
+
+
+/* ============================================================
+   CHECKBOX
+   ============================================================ */
+
+[data-testid="stAppViewContainer"] .main
+[data-testid="stCheckbox"] label {
+    color: #111827 !important;
+}
+
+
+/* ============================================================
+   PLOTLY CONTAINER
+   ============================================================ */
+
+[data-testid="stPlotlyChart"] {
+    background-color: #ffffff !important;
+    border-radius: 12px !important;
+    padding: 5px !important;
+}
+
+
+/* ============================================================
+   DOWNLOAD BUTTON
+   ============================================================ */
+
+[data-testid="stDownloadButton"] button {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+}
+
+
+/* ============================================================
+   REMOVE ANY WHITE TEXT FROM MAIN AREA
+   ============================================================ */
+
+/* Markdown bold text */
+[data-testid="stAppViewContainer"] .main strong {
+    color: #111827 !important;
+}
+
+/* Markdown italic text */
+[data-testid="stAppViewContainer"] .main em {
+    color: #374151 !important;
+}
+
+/* Code / inline code */
+[data-testid="stAppViewContainer"] .main code {
+    color: #111827 !important;
+    background-color: #e5e7eb !important;
+}
+
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+</style>
+""", unsafe_allow_html=True)
+முக்கியமானது
+உன் code-ல இப்போ இருக்கும்:
+
 # ============================================================
 # CUSTOM CSS
 # ============================================================
@@ -53,11 +426,7 @@ st.markdown("""
 /* METRIC CARD */
 
 [data-testid="stMetric"] {
-    background-color: #ffffff !important;
-    border: 1px solid #e5e7eb !important;
-    border-radius: 14px !important;
-    padding: 18px !important;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08) !important;
+    ...
 }
 
 /* ALL METRIC TEXT */
@@ -66,44 +435,22 @@ st.markdown("""
     color: #111827 !important;
 }
 
-/* METRIC LABEL */
-
-[data-testid="stMetricLabel"] p {
-    color: #6b7280 !important;
-    font-weight: 600 !important;
-}
-
-/* METRIC VALUE */
-
-[data-testid="stMetricValue"] {
-    color: #111827 !important;
-    font-weight: 700 !important;
-}
-
-[data-testid="stMetricValue"] * {
-    color: #111827 !important;
-}
-
-/* SIDEBAR */
-
-[data-testid="stSidebar"] {
-    background-color: #111827 !important;
-}
-
-[data-testid="stSidebar"] * {
-    color: white !important;
-}
-
-/* HEADINGS */
-
-h1, h2, h3 {
-    color: #111827 !important;
-}
-
+...
 </style>
 """, unsafe_allow_html=True)
 
 
+st.set_page_config(
+    page_title="Financial Fraud Intelligence",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# CUSTOM CSS
+st.markdown("""
+...
+""", unsafe_allow_html=True)
 # ============================================================
 # SESSION STATE
 # ============================================================
