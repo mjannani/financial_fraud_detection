@@ -41,6 +41,60 @@ pio.templates.default = "plotly_white"
 
 
 # ============================================================
+# PLOTLY CHART STYLE - FORCE VISIBLE DARK TEXT
+# ============================================================
+def style_plotly(fig):
+    """Apply a consistent light theme so Plotly text is always readable."""
+    fig.update_layout(
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#ffffff",
+        font=dict(
+            family="Arial, sans-serif",
+            size=13,
+            color="#111827",
+        ),
+        title=dict(
+            font=dict(
+                family="Arial, sans-serif",
+                size=19,
+                color="#111827",
+            ),
+        ),
+        legend=dict(
+            font=dict(
+                family="Arial, sans-serif",
+                size=13,
+                color="#111827",
+            ),
+        ),
+        margin=dict(l=55, r=35, t=70, b=55),
+    )
+
+    fig.update_xaxes(
+        title_font=dict(size=14, color="#111827"),
+        tickfont=dict(size=12, color="#374151"),
+        linecolor="#6b7280",
+        tickcolor="#6b7280",
+        gridcolor="#e5e7eb",
+        zerolinecolor="#9ca3af",
+    )
+
+    fig.update_yaxes(
+        title_font=dict(size=14, color="#111827"),
+        tickfont=dict(size=12, color="#374151"),
+        linecolor="#6b7280",
+        tickcolor="#6b7280",
+        gridcolor="#e5e7eb",
+        zerolinecolor="#9ca3af",
+    )
+
+    # Keep annotation/text labels readable without changing trace colors.
+    fig.update_annotations(font=dict(color="#111827", size=13))
+
+    return fig
+
+
+# ============================================================
 # FIXED LIGHT THEME CSS
 # ============================================================
 
@@ -382,6 +436,26 @@ a {
     background-color: #ffffff !important;
     border-radius: 12px !important;
     padding: 4px !important;
+}
+
+
+/* =========================================================
+   PLOTLY SVG TEXT VISIBILITY
+   ========================================================= */
+
+[data-testid="stPlotlyChart"] .g-gtitle,
+[data-testid="stPlotlyChart"] .xtitle,
+[data-testid="stPlotlyChart"] .ytitle,
+[data-testid="stPlotlyChart"] .xtick text,
+[data-testid="stPlotlyChart"] .ytick text,
+[data-testid="stPlotlyChart"] .legendtext,
+[data-testid="stPlotlyChart"] .axis-title {
+    fill: #111827 !important;
+    color: #111827 !important;
+}
+
+[data-testid="stPlotlyChart"] .legendtext {
+    font-weight: 600 !important;
 }
 
 
@@ -1309,7 +1383,7 @@ if page == "🏠 Executive Intelligence":
         )
 
         st.plotly_chart(
-            fig,
+            style_plotly(fig),
             use_container_width=True,
         )
 
@@ -1335,7 +1409,7 @@ if page == "🏠 Executive Intelligence":
         )
 
         st.plotly_chart(
-            fig,
+            style_plotly(fig),
             use_container_width=True,
         )
 
@@ -1436,7 +1510,7 @@ elif page == "📊 Transaction Analytics":
             )
 
             st.plotly_chart(
-                fig,
+                style_plotly(fig),
                 use_container_width=True,
             )
 
@@ -1468,7 +1542,7 @@ elif page == "📊 Transaction Analytics":
             )
 
             st.plotly_chart(
-                fig,
+                style_plotly(fig),
                 use_container_width=True,
             )
 
@@ -1537,7 +1611,7 @@ elif page == "📊 Transaction Analytics":
         )
 
         st.plotly_chart(
-            fig,
+            style_plotly(fig),
             use_container_width=True,
         )
 
@@ -1612,7 +1686,7 @@ elif page == "📊 Transaction Analytics":
             )
 
             st.plotly_chart(
-                fig,
+                style_plotly(fig),
                 use_container_width=True,
             )
 
@@ -1708,7 +1782,7 @@ elif page == "🚨 Fraud Pattern Intelligence":
         )
 
         st.plotly_chart(
-            fig,
+            style_plotly(fig),
             use_container_width=True,
         )
 
@@ -2181,7 +2255,7 @@ elif page == "🤖 AI Risk Engine":
         )
 
         st.plotly_chart(
-            fig,
+            style_plotly(fig),
             use_container_width=True,
         )
 
@@ -2626,7 +2700,7 @@ elif page == "🧪 What-If Analysis":
         )
 
         st.plotly_chart(
-            gauge,
+            style_plotly(gauge),
             use_container_width=True,
         )
 
@@ -2754,7 +2828,7 @@ elif page == "📈 Model Performance":
     )
 
     st.plotly_chart(
-        fig,
+        style_plotly(fig),
         use_container_width=True,
     )
 
@@ -2805,7 +2879,7 @@ elif page == "📈 Model Performance":
     )
 
     st.plotly_chart(
-        fig,
+        style_plotly(fig),
         use_container_width=True,
     )
 
@@ -2842,7 +2916,7 @@ elif page == "📈 Model Performance":
         )
 
         st.plotly_chart(
-            fig,
+            style_plotly(fig),
             use_container_width=True,
         )
 
@@ -2993,7 +3067,7 @@ elif page == "📡 Model Monitoring":
         )
 
         st.plotly_chart(
-            fig,
+            style_plotly(fig),
             use_container_width=True,
         )
 
