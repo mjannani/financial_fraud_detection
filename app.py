@@ -46,54 +46,58 @@ st.set_page_config(
 st.markdown("""
 <style>
 
-.main {
-    background-color: #f5f7fb;
+.stApp {
+    background-color: #f5f7fb !important;
 }
 
-.block-container {
-    padding-top: 1.5rem;
-    padding-bottom: 2rem;
-}
+/* METRIC CARD */
 
 [data-testid="stMetric"] {
-    background-color: white;
-    border-radius: 14px;
-    padding: 15px;
-    border: 1px solid #e8ebf0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    background-color: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 14px !important;
+    padding: 18px !important;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08) !important;
 }
 
+/* ALL METRIC TEXT */
+
+[data-testid="stMetric"] * {
+    color: #111827 !important;
+}
+
+/* METRIC LABEL */
+
+[data-testid="stMetricLabel"] p {
+    color: #6b7280 !important;
+    font-weight: 600 !important;
+}
+
+/* METRIC VALUE */
+
+[data-testid="stMetricValue"] {
+    color: #111827 !important;
+    font-weight: 700 !important;
+}
+
+[data-testid="stMetricValue"] * {
+    color: #111827 !important;
+}
+
+/* SIDEBAR */
+
 [data-testid="stSidebar"] {
-    background-color: #111827;
+    background-color: #111827 !important;
 }
 
 [data-testid="stSidebar"] * {
-    color: white;
+    color: white !important;
 }
 
-.stButton > button {
-    border-radius: 10px;
-    font-weight: 600;
-}
+/* HEADINGS */
 
-h1 {
-    font-weight: 750;
-}
-
-h2 {
-    font-weight: 700;
-}
-
-h3 {
-    font-weight: 650;
-}
-
-.risk-card {
-    padding: 20px;
-    border-radius: 15px;
-    background: white;
-    border: 1px solid #e5e7eb;
-    margin-bottom: 15px;
+h1, h2, h3 {
+    color: #111827 !important;
 }
 
 </style>
