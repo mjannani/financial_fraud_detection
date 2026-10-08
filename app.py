@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -11,688 +10,2340 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, IsolationForest
 from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score,
-    f1_score, roc_auc_score, confusion_matrix,
-    classification_report
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    confusion_matrix,
+    classification_report,
+    roc_curve
 )
 from imblearn.over_sampling import SMOTE
 
 
+# ============================================================
+# PAGE CONFIG
+# ============================================================
+
 st.set_page_config(
-    page_title="Financial Fraud Detection",
-    page_icon="💳",
-    layout="wide"
+    page_title="Financial Fraud Intelligence",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+
+# ============================================================
+# CUSTOM CSS
+# ============================================================
 
 st.markdown("""
 <style>
+
+.main {
+    background-color: #f5f7fb;
+}
+
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+}
+
 [data-testid="stMetric"] {
-    background-color: white !important;
-    border-radius: 12px;
+    background-color: white;
+    border-radius: 14px;
     padding: 15px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    border: 1px solid #e8ebf0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
-[data-testid="stMetricLabel"] {
-    color: #333333 !important;
+[data-testid="stSidebar"] {
+    background-color: #111827;
 }
 
-[data-testid="stMetricLabel"] p {
-    color: #333333 !important;
-    font-weight: 600 !important;
+[data-testid="stSidebar"] * {
+    color: white;
 }
 
-[data-testid="stMetricValue"] {
-    color: #111111 !important;
-    font-weight: 700 !important;
+.stButton > button {
+    border-radius: 10px;
+    font-weight: 600;
 }
 
-[data-testid="stMetricDelta"] {
-    color: #333333 !important;
+h1 {
+    font-weight: 750;
 }
+
+h2 {
+    font-weight: 700;
+}
+
+h3 {
+    font-weight: 650;
+}
+
+.risk-card {
+    padding: 20px;
+    border-radius: 15px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 15px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 
-def load_file(file):
-    if file.name.lower().endswith(".csv"):
-        return pd.read_csv(file)
-    return pd.read_excel(file)
+# ============================================================
+# SESSION STATE
+# ============================================================
+
+defaults = {
+    "df": None,
+    "target": None,
+    "model": None,
+    "preprocessor": None,
+    "anomaly_model": None,
+    "metrics": None,
+    "feature_importance": None,
+    "feature_names": None,
+    "X_reference": None,
+    "numeric_columns": None,
+    "categorical_columns": None,
+    "training_columns": None,
+    "training_means": None
+}
+
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 
-def clean_data(df):
+# ============================================================
+# FUNCTIONS
+# ============================================================
+
+def load_file(uploaded_file):
+
+    if uploaded_file.name.lower().endswith(".csv"):
+        return pd.read_csv(uploaded_file)
+
+    if uploaded_file.name.lower().endswith(
+        (".xlsx", ".xls")
+    ):
+        return pd.read_excel(uploaded_file)
+
+    return None
+
+
+def clean_dataframe(df):
+
     df = df.copy()
+
     df.columns = [
-        str(c).strip().replace(" ", "_").replace("-", "_")
-        for c in df.columns
+        str(c).strip()
+        .replace(" ", "_")
+        .replace("-", "_")
+        .replace("/", "_")
     ]
-    return df.drop_duplicates()
+
+    df = df.drop_duplicates()
+
+    return df
 
 
 def detect_target(columns):
+
     candidates = [
-        "class", "fraud", "is_fraud", "fraud_flag",
-        "fraudulent", "isfraud", "fraud_status",
-        "label", "target"
+        "class",
+        "fraud",
+        "is_fraud",
+        "fraud_flag",
+        "fraudulent",
+        "isfraud",
+        "fraud_status",
+        "target",
+        "label",
+        "risk"
     ]
+
     normalized = {
-        str(c).lower().replace(" ", "_").replace("-", "_"): c
+        str(c).lower().replace(" ", "_"): c
         for c in columns
     }
 
-    for c in candidates:
-        if c in normalized:
-            return normalized[c]
+    for candidate in candidates:
 
-    for c in columns:
-        if "fraud" in str(c).lower():
-            return c
+        if candidate in normalized:
+            return normalized[candidate]
+
+    for column in columns:
+
+        name = str(column).lower()
+
+        if "fraud" in name:
+            return column
 
     return None
 
 
 def encode_target(series):
+
     if pd.api.types.is_numeric_dtype(series):
-        values = sorted(series.dropna().unique())
+
+        values = sorted(
+            series.dropna().unique().tolist()
+        )
+
         if len(values) == 2:
-            return series.map({values[0]: 0, values[1]: 1})
 
-    text = series.astype(str).str.lower().str.strip()
-    fraud_words = {
-        "fraud", "yes", "true", "1",
-        "fraudulent", "positive", "suspicious"
+            mapping = {
+                values[0]: 0,
+                values[1]: 1
+            }
+
+            return series.map(mapping), mapping
+
+    text = (
+        series
+        .astype(str)
+        .str.lower()
+        .str.strip()
+    )
+
+    unique_values = text.unique()
+
+    if len(unique_values) == 2:
+
+        fraud_words = [
+            "fraud",
+            "fraudulent",
+            "yes",
+            "true",
+            "positive",
+            "suspicious",
+            "1"
+        ]
+
+        mapping = {}
+
+        for value in unique_values:
+
+            if value in fraud_words:
+                mapping[value] = 1
+            else:
+                mapping[value] = 0
+
+        return text.map(mapping), mapping
+
+    return None, None
+
+
+def create_preprocessor(X):
+
+    numeric_columns = X.select_dtypes(
+        include=np.number
+    ).columns.tolist()
+
+    categorical_columns = X.select_dtypes(
+        exclude=np.number
+    ).columns.tolist()
+
+    numeric_pipeline = Pipeline(
+        steps=[
+            (
+                "imputer",
+                SimpleImputer(strategy="median")
+            ),
+            (
+                "scaler",
+                StandardScaler()
+            )
+        ]
+    )
+
+    categorical_pipeline = Pipeline(
+        steps=[
+            (
+                "imputer",
+                SimpleImputer(
+                    strategy="most_frequent"
+                )
+            ),
+            (
+                "encoder",
+                OneHotEncoder(
+                    handle_unknown="ignore",
+                    sparse_output=False
+                )
+            )
+        ]
+    )
+
+    transformers = []
+
+    if numeric_columns:
+
+        transformers.append(
+            (
+                "numeric",
+                numeric_pipeline,
+                numeric_columns
+            )
+        )
+
+    if categorical_columns:
+
+        transformers.append(
+            (
+                "categorical",
+                categorical_pipeline,
+                categorical_columns
+            )
+        )
+
+    preprocessor = ColumnTransformer(
+        transformers=transformers
+    )
+
+    return preprocessor
+
+
+def get_feature_names(preprocessor):
+
+    try:
+        return preprocessor.get_feature_names_out()
+
+    except Exception:
+
+        return []
+
+
+def calculate_risk(probability, anomaly_score):
+
+    ml_score = probability * 100
+    anomaly_part = anomaly_score * 100
+
+    risk = (
+        ml_score * 0.70
+        +
+        anomaly_part * 0.30
+    )
+
+    return min(
+        100,
+        max(0, risk)
+    )
+
+
+def risk_category(score):
+
+    if score >= 85:
+        return "CRITICAL"
+
+    if score >= 70:
+        return "HIGH"
+
+    if score >= 40:
+        return "MEDIUM"
+
+    return "LOW"
+
+
+def risk_symbol(category):
+
+    symbols = {
+        "CRITICAL": "🔴",
+        "HIGH": "🟠",
+        "MEDIUM": "🟡",
+        "LOW": "🟢"
     }
-    values = list(text.dropna().unique())
 
-    if len(values) == 2:
-        mapping = {
-            value: 1 if value in fraud_words else 0
-            for value in values
-        }
-        return text.map(mapping)
+    return symbols.get(
+        category,
+        "⚪"
+    )
+
+
+def find_amount_column(columns):
+
+    keywords = [
+        "amount",
+        "transaction_amount",
+        "amt",
+        "value",
+        "price"
+    ]
+
+    for column in columns:
+
+        name = str(column).lower()
+
+        for keyword in keywords:
+
+            if keyword in name:
+                return column
 
     return None
 
 
-def make_preprocessor(X):
-    numeric = X.select_dtypes(include=np.number).columns.tolist()
-    categorical = X.select_dtypes(exclude=np.number).columns.tolist()
+def find_time_column(columns):
 
-    transformers = []
+    keywords = [
+        "time",
+        "timestamp",
+        "date",
+        "datetime"
+    ]
 
-    if numeric:
-        num_pipe = Pipeline([
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler", StandardScaler())
-        ])
-        transformers.append(("num", num_pipe, numeric))
+    for column in columns:
 
-    if categorical:
-        cat_pipe = Pipeline([
-            ("imputer", SimpleImputer(strategy="most_frequent")),
-            ("encoder", OneHotEncoder(
-                handle_unknown="ignore",
-                sparse_output=False
-            ))
-        ])
-        transformers.append(("cat", cat_pipe, categorical))
+        name = str(column).lower()
 
-    return ColumnTransformer(transformers=transformers)
+        for keyword in keywords:
+
+            if keyword in name:
+                return column
+
+    return None
 
 
-def feature_names(preprocessor):
-    try:
-        return preprocessor.get_feature_names_out()
-    except Exception:
-        return np.array([])
+def generate_reasons(
+    row,
+    probability,
+    anomaly_score,
+    amount_column=None,
+    reference_amount=None
+):
+
+    reasons = []
+
+    if probability >= 0.80:
+        reasons.append(
+            "Very high ML fraud probability"
+        )
+
+    elif probability >= 0.60:
+        reasons.append(
+            "High ML fraud probability"
+        )
+
+    if anomaly_score >= 0.75:
+        reasons.append(
+            "Transaction behavior is highly anomalous"
+        )
+
+    elif anomaly_score >= 0.50:
+        reasons.append(
+            "Transaction behavior differs from normal patterns"
+        )
+
+    if (
+        amount_column is not None
+        and reference_amount is not None
+    ):
+
+        try:
+
+            amount = float(
+                row[amount_column]
+            )
+
+            if amount > reference_amount * 3:
+
+                reasons.append(
+                    "Transaction amount is significantly higher than normal"
+                )
+
+        except Exception:
+            pass
+
+    if not reasons:
+
+        reasons.append(
+            "Transaction shows relatively normal behavior"
+        )
+
+    return reasons
 
 
-if "df" not in st.session_state:
-    st.session_state.df = None
-if "target" not in st.session_state:
-    st.session_state.target = None
-if "model" not in st.session_state:
-    st.session_state.model = None
-if "preprocessor" not in st.session_state:
-    st.session_state.preprocessor = None
-if "results" not in st.session_state:
-    st.session_state.results = None
-if "feature_importance" not in st.session_state:
-    st.session_state.feature_importance = None
+# ============================================================
+# SIDEBAR
+# ============================================================
 
+st.sidebar.title("🛡️ FRAUD INTELLIGENCE")
 
-st.sidebar.title("💳 Fraud Intelligence")
-uploaded = st.sidebar.file_uploader(
-    "Upload Financial Fraud Dataset",
-    type=["csv", "xlsx", "xls"]
+st.sidebar.caption(
+    "AI-Powered Financial Risk Analytics"
 )
 
-if uploaded is not None:
+uploaded_file = st.sidebar.file_uploader(
+    "Upload Financial Fraud Dataset",
+    type=[
+        "csv",
+        "xlsx",
+        "xls"
+    ]
+)
+
+
+# ============================================================
+# LOAD DATA
+# ============================================================
+
+if uploaded_file is not None:
+
     try:
-        st.session_state.df = clean_data(load_file(uploaded))
-        detected = detect_target(st.session_state.df.columns)
-        if detected:
-            st.session_state.target = detected
+
+        df = load_file(
+            uploaded_file
+        )
+
+        df = clean_dataframe(
+            df
+        )
+
+        st.session_state.df = df
+
+        detected_target = detect_target(
+            df.columns
+        )
+
+        if detected_target is not None:
+
+            st.session_state.target = (
+                detected_target
+            )
+
     except Exception as e:
-        st.error(f"Could not load file: {e}")
-        st.stop()
+
+        st.error(
+            f"Dataset loading error: {e}"
+        )
+
 
 if st.session_state.df is None:
-    st.title("💳 Financial Fraud Detection & Risk Analytics")
-    st.markdown("""
-    ### Streamlit Data Analytics Application
 
-    Upload one of your Zidio fraud datasets from the sidebar.
+    st.title(
+        "🛡️ Financial Fraud Intelligence Platform"
+    )
 
-    **Included modules**
-    - Executive KPI dashboard
-    - Exploratory Data Analysis
-    - Fraud pattern analysis
-    - Transaction amount analysis
-    - SMOTE class balancing
-    - Logistic Regression
-    - Random Forest
-    - Model comparison
-    - Confusion matrix
-    - ROC-AUC
-    - Feature importance
-    - Batch fraud-risk prediction
-    """)
-    st.info("Upload your CSV/XLSX dataset to begin.")
+    st.markdown(
+        """
+        ### AI-Powered Fraud Detection & Risk Analytics
+
+        This platform combines:
+
+        **Machine Learning + Anomaly Detection + Risk Scoring
+        + Explainable Analytics + Investigation Intelligence**
+        """
+    )
+
+    st.info(
+        "Upload your Zidio Financial Fraud dataset from the sidebar."
+    )
+
+    st.markdown(
+        """
+        ### Advanced capabilities
+
+        🔹 Fraud probability prediction
+
+        🔹 Unsupervised anomaly detection
+
+        🔹 Combined AI risk score
+
+        🔹 Fraud pattern analytics
+
+        🔹 Investigation priority queue
+
+        🔹 Transaction explanation
+
+        🔹 Model performance
+
+        🔹 What-if risk analysis
+
+        🔹 Batch fraud screening
+
+        🔹 Data drift monitoring
+        """
+    )
+
     st.stop()
 
 
 df = st.session_state.df
 
+
+# ============================================================
+# TARGET SELECTION
+# ============================================================
+
+target_options = df.columns.tolist()
+
+default_index = 0
+
+if st.session_state.target in target_options:
+
+    default_index = target_options.index(
+        st.session_state.target
+    )
+
+
 target = st.sidebar.selectbox(
     "Fraud / Target Column",
-    df.columns.tolist(),
-    index=(
-        df.columns.tolist().index(st.session_state.target)
-        if st.session_state.target in df.columns
-        else 0
-    )
+    target_options,
+    index=default_index
 )
+
 st.session_state.target = target
 
-pages = [
-    "🏠 Executive Overview",
-    "📊 Data Analysis",
-    "🚨 Fraud Analysis",
-    "🤖 Model Training",
-    "📈 Model Performance",
-    "🔍 Risk Prediction",
-    "📋 Dataset"
-]
-page = st.sidebar.radio("Navigation", pages)
 
-target_encoded = encode_target(df[target])
+# ============================================================
+# TARGET ENCODING
+# ============================================================
+
+target_encoded, target_mapping = encode_target(
+    df[target]
+)
 
 if target_encoded is None:
+
     st.error(
-        "The selected target column must contain exactly two classes, "
-        "such as 0/1, Normal/Fraud, or Yes/No."
+        "Selected target column must contain exactly two classes."
     )
+
     st.stop()
 
-work_df = df.copy()
-work_df["_Fraud_Label"] = target_encoded
 
-total = len(work_df)
-fraud = int((work_df["_Fraud_Label"] == 1).sum())
-normal = int((work_df["_Fraud_Label"] == 0).sum())
-fraud_rate = fraud / total * 100 if total else 0
+analysis_df = df.copy()
+
+analysis_df["Fraud_Label"] = (
+    target_encoded
+)
+
+analysis_df = analysis_df.dropna(
+    subset=["Fraud_Label"]
+)
+
+analysis_df["Fraud_Label"] = (
+    analysis_df["Fraud_Label"]
+    .astype(int)
+)
 
 
-if page == "🏠 Executive Overview":
-    st.title("💳 Financial Fraud Detection & Risk Analytics")
-    st.caption("Data Analytics + Machine Learning + Streamlit")
+# ============================================================
+# GLOBAL KPIs
+# ============================================================
+
+total_transactions = len(
+    analysis_df
+)
+
+fraud_count = int(
+    (
+        analysis_df["Fraud_Label"] == 1
+    ).sum()
+)
+
+normal_count = int(
+    (
+        analysis_df["Fraud_Label"] == 0
+    ).sum()
+)
+
+fraud_rate = (
+    fraud_count
+    /
+    total_transactions
+    *
+    100
+)
+
+
+amount_column = find_amount_column(
+    df.columns
+)
+
+time_column = find_time_column(
+    df.columns
+)
+
+
+# ============================================================
+# NAVIGATION
+# ============================================================
+
+pages = [
+    "🏠 Executive Intelligence",
+    "📊 Transaction Analytics",
+    "🚨 Fraud Pattern Intelligence",
+    "🤖 AI Risk Engine",
+    "🔍 Investigation Center",
+    "🧪 What-If Analysis",
+    "📈 Model Performance",
+    "📡 Model Monitoring",
+    "📋 Dataset Explorer"
+]
+
+
+page = st.sidebar.radio(
+    "Navigation",
+    pages
+)
+
+
+st.sidebar.divider()
+
+st.sidebar.metric(
+    "Transactions",
+    f"{total_transactions:,}"
+)
+
+st.sidebar.metric(
+    "Fraud Cases",
+    f"{fraud_count:,}"
+)
+
+st.sidebar.metric(
+    "Fraud Rate",
+    f"{fraud_rate:.3f}%"
+)
+
+
+# ============================================================
+# EXECUTIVE INTELLIGENCE
+# ============================================================
+
+if page == "🏠 Executive Intelligence":
+
+    st.title(
+        "🛡️ Financial Fraud Intelligence"
+    )
+
+    st.caption(
+        "AI-powered transaction risk analytics platform"
+    )
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Transactions", f"{total:,}")
-    c2.metric("Fraud Transactions", f"{fraud:,}")
-    c3.metric("Normal Transactions", f"{normal:,}")
-    c4.metric("Fraud Rate", f"{fraud_rate:.3f}%")
 
-    distribution = pd.DataFrame({
-        "Status": ["Normal", "Fraud"],
-        "Count": [normal, fraud]
-    })
+    c1.metric(
+        "Total Transactions",
+        f"{total_transactions:,}"
+    )
 
-    left, right = st.columns(2)
+    c2.metric(
+        "Fraud Transactions",
+        f"{fraud_count:,}"
+    )
 
-    with left:
-        fig = px.bar(
-            distribution, x="Status", y="Count",
-            text="Count", title="Normal vs Fraud Transactions"
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    c3.metric(
+        "Normal Transactions",
+        f"{normal_count:,}"
+    )
 
-    with right:
-        fig = px.pie(
-            distribution, names="Status", values="Count",
-            hole=.45, title="Transaction Distribution"
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    c4.metric(
+        "Fraud Rate",
+        f"{fraud_rate:.3f}%"
+    )
 
-    amount_cols = [
-        c for c in df.select_dtypes(include=np.number).columns
-        if "amount" in str(c).lower()
-    ]
+    st.divider()
 
-    if amount_cols:
-        amount_col = amount_cols[0]
+    if amount_column is not None:
+
+        total_value = pd.to_numeric(
+            analysis_df[amount_column],
+            errors="coerce"
+        ).sum()
+
+        fraud_value = pd.to_numeric(
+            analysis_df.loc[
+                analysis_df["Fraud_Label"] == 1,
+                amount_column
+            ],
+            errors="coerce"
+        ).sum()
+
         c1, c2 = st.columns(2)
+
         c1.metric(
             "Total Transaction Value",
-            f"{df[amount_col].sum():,.2f}"
+            f"{total_value:,.2f}"
         )
+
         c2.metric(
             "Fraud Transaction Value",
-            f"{work_df.loc[work_df['_Fraud_Label']==1, amount_col].sum():,.2f}"
+            f"{fraud_value:,.2f}"
         )
 
-    st.subheader("Business Summary")
-    st.success(
-        f"The dataset contains {total:,} transactions, including "
-        f"{fraud:,} fraudulent transactions. The observed fraud rate "
-        f"is {fraud_rate:.3f}%."
+    st.subheader(
+        "Transaction Distribution"
     )
 
+    distribution = pd.DataFrame(
+        {
+            "Type": [
+                "Normal",
+                "Fraud"
+            ],
+            "Count": [
+                normal_count,
+                fraud_count
+            ]
+        }
+    )
 
-elif page == "📊 Data Analysis":
-    st.title("📊 Exploratory Data Analysis")
+    col1, col2 = st.columns(2)
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Rows", f"{df.shape[0]:,}")
-    c2.metric("Columns", df.shape[1])
-    c3.metric("Duplicates", f"{df.duplicated().sum():,}")
-    c4.metric("Missing Values", f"{df.isnull().sum().sum():,}")
+    with col1:
 
-    st.subheader("Missing Values")
-    missing = df.isnull().sum().sort_values(ascending=False)
-    missing = missing[missing > 0]
+        fig = px.bar(
+            distribution,
+            x="Type",
+            y="Count",
+            text="Count",
+            title="Normal vs Fraud"
+        )
 
-    if missing.empty:
-        st.success("No missing values found.")
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    with col2:
+
+        fig = px.pie(
+            distribution,
+            names="Type",
+            values="Count",
+            hole=0.5,
+            title="Transaction Distribution"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    st.subheader(
+        "Business Intelligence"
+    )
+
+    if fraud_rate < 1:
+
+        st.warning(
+            f"Fraud represents only {fraud_rate:.3f}% "
+            "of transactions. This indicates a highly "
+            "imbalanced fraud detection problem."
+        )
+
     else:
-        m = missing.reset_index()
-        m.columns = ["Column", "Missing Values"]
-        fig = px.bar(m, x="Column", y="Missing Values")
-        st.plotly_chart(fig, use_container_width=True)
 
-    numeric = df.select_dtypes(include=np.number).columns.tolist()
-
-    if numeric:
-        col = st.selectbox("Select numeric feature", numeric)
-        fig = px.histogram(
-            df, x=col, nbins=50,
-            title=f"Distribution of {col}"
+        st.info(
+            f"Fraud represents {fraud_rate:.2f}% "
+            "of transactions."
         )
-        st.plotly_chart(fig, use_container_width=True)
-
-        if len(numeric) >= 2:
-            corr = df[numeric].corr()
-            fig = px.imshow(
-                corr, aspect="auto",
-                title="Numeric Feature Correlation"
-            )
-            st.plotly_chart(fig, use_container_width=True)
 
 
-elif page == "🚨 Fraud Analysis":
-    st.title("🚨 Fraud Pattern Analysis")
+# ============================================================
+# TRANSACTION ANALYTICS
+# ============================================================
 
-    amount_cols = [
-        c for c in df.select_dtypes(include=np.number).columns
-        if "amount" in str(c).lower()
-    ]
+elif page == "📊 Transaction Analytics":
 
-    if amount_cols:
-        amount_col = amount_cols[0]
-        fig = px.box(
-            work_df,
-            x="_Fraud_Label",
-            y=amount_col,
-            title="Transaction Amount: Normal vs Fraud"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        summary = work_df.groupby("_Fraud_Label")[amount_col].agg(
-            ["count", "mean", "median", "max"]
-        ).reset_index()
-        summary["_Fraud_Label"] = summary["_Fraud_Label"].map(
-            {0: "Normal", 1: "Fraud"}
-        )
-        st.dataframe(summary, use_container_width=True)
-
-    time_cols = [
-        c for c in df.select_dtypes(include=np.number).columns
-        if str(c).lower() == "time"
-    ]
-
-    if time_cols:
-        time_col = time_cols[0]
-        temp = work_df.copy()
-        temp["Hour"] = (temp[time_col] / 3600) % 24
-        hourly = temp.groupby("Hour")["_Fraud_Label"].sum().reset_index()
-        hourly.columns = ["Hour", "Fraud Transactions"]
-
-        fig = px.line(
-            hourly, x="Hour", y="Fraud Transactions",
-            markers=True, title="Fraud Transactions by Hour"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("Fraud Rate")
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=fraud_rate,
-        title={"text": "Fraud Rate (%)"},
-        gauge={"axis": {"range": [0, max(1, fraud_rate * 2)]}}
-    ))
-    st.plotly_chart(fig, use_container_width=True)
-
-
-elif page == "🤖 Model Training":
-    st.title("🤖 Fraud Detection Model Training")
-
-    X = work_df.drop(columns=[target, "_Fraud_Label"])
-    y = work_df["_Fraud_Label"].astype(int)
-
-    if y.nunique() != 2:
-        st.error("Target must contain exactly two classes.")
-        st.stop()
-
-    if y.value_counts().min() < 2:
-        st.error("The minority class has fewer than two records.")
-        st.stop()
-
-    test_size = st.slider("Test Size", .10, .40, .20, .05)
-    random_state = st.number_input(
-        "Random State", min_value=1, max_value=999, value=42
+    st.title(
+        "📊 Transaction Intelligence"
     )
 
-    if st.button("🚀 Train Models", use_container_width=True):
-        with st.spinner("Training models..."):
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
-                test_size=test_size,
-                random_state=int(random_state),
-                stratify=y
+    numeric_columns = df.select_dtypes(
+        include=np.number
+    ).columns.tolist()
+
+    numeric_columns = [
+        c for c in numeric_columns
+        if c != target
+    ]
+
+    if numeric_columns:
+
+        selected_column = st.selectbox(
+            "Select transaction feature",
+            numeric_columns
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            fig = px.histogram(
+                analysis_df,
+                x=selected_column,
+                color="Fraud_Label",
+                nbins=50,
+                title=f"{selected_column} Distribution"
             )
 
-            preprocessor = make_preprocessor(X_train)
-
-            X_train_p = preprocessor.fit_transform(X_train)
-            X_test_p = preprocessor.transform(X_test)
-
-            try:
-                smote = SMOTE(random_state=int(random_state))
-                X_train_b, y_train_b = smote.fit_resample(
-                    X_train_p, y_train
-                )
-            except Exception:
-                X_train_b, y_train_b = X_train_p, y_train
-
-            models = {
-                "Logistic Regression": LogisticRegression(
-                    max_iter=1000, class_weight="balanced"
-                ),
-                "Random Forest": RandomForestClassifier(
-                    n_estimators=150,
-                    random_state=int(random_state),
-                    n_jobs=-1,
-                    class_weight="balanced"
-                )
-            }
-
-            results = []
-            trained = {}
-
-            for name, model in models.items():
-                model.fit(X_train_b, y_train_b)
-                pred = model.predict(X_test_p)
-                prob = model.predict_proba(X_test_p)[:, 1]
-
-                result = {
-                    "Model": name,
-                    "Accuracy": accuracy_score(y_test, pred),
-                    "Precision": precision_score(
-                        y_test, pred, zero_division=0
-                    ),
-                    "Recall": recall_score(
-                        y_test, pred, zero_division=0
-                    ),
-                    "F1 Score": f1_score(
-                        y_test, pred, zero_division=0
-                    ),
-                    "ROC-AUC": roc_auc_score(y_test, prob)
-                }
-                results.append(result)
-
-                trained[name] = {
-                    "model": model,
-                    "predictions": pred,
-                    "probabilities": prob,
-                    "y_test": y_test
-                }
-
-            results_df = pd.DataFrame(results)
-            st.session_state.results = results_df
-            st.session_state.model = trained["Random Forest"]
-            st.session_state.preprocessor = preprocessor
-
-            names = feature_names(preprocessor)
-            rf = trained["Random Forest"]["model"]
-
-            if hasattr(rf, "feature_importances_"):
-                importance = pd.DataFrame({
-                    "Feature": names,
-                    "Importance": rf.feature_importances_
-                }).sort_values("Importance", ascending=False)
-                st.session_state.feature_importance = importance
-
-            joblib.dump(rf, "fraud_model.pkl")
-            joblib.dump(preprocessor, "fraud_preprocessor.pkl")
-
-            st.success("Models trained successfully!")
-            st.dataframe(
-                results_df.style.format({
-                    "Accuracy": "{:.4f}",
-                    "Precision": "{:.4f}",
-                    "Recall": "{:.4f}",
-                    "F1 Score": "{:.4f}",
-                    "ROC-AUC": "{:.4f}"
-                }),
+            st.plotly_chart(
+                fig,
                 use_container_width=True
             )
 
-            st.download_button(
-                "Download Model Results",
-                results_df.to_csv(index=False),
-                "model_results.csv",
-                "text/csv"
+        with col2:
+
+            fig = px.box(
+                analysis_df,
+                x="Fraud_Label",
+                y=selected_column,
+                color="Fraud_Label",
+                title=f"{selected_column}: Normal vs Fraud"
             )
 
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
 
-elif page == "📈 Model Performance":
-    st.title("📈 Model Performance")
+    st.subheader(
+        "Correlation Intelligence"
+    )
 
-    if st.session_state.results is None:
-        st.warning("Train the models first.")
+    numeric_df = analysis_df.select_dtypes(
+        include=np.number
+    )
+
+    if numeric_df.shape[1] >= 2:
+
+        corr = numeric_df.corr()
+
+        fig = px.imshow(
+            corr,
+            aspect="auto",
+            title="Feature Correlation Matrix"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    if time_column is not None:
+
+        st.subheader(
+            "Transaction Time Intelligence"
+        )
+
+        temp = analysis_df.copy()
+
+        try:
+
+            if pd.api.types.is_numeric_dtype(
+                temp[time_column]
+            ):
+
+                temp["Hour"] = (
+                    temp[time_column] / 3600
+                ) % 24
+
+            else:
+
+                temp["Parsed_Time"] = pd.to_datetime(
+                    temp[time_column],
+                    errors="coerce"
+                )
+
+                temp["Hour"] = (
+                    temp["Parsed_Time"].dt.hour
+                )
+
+            hourly = temp.groupby(
+                "Hour"
+            )["Fraud_Label"].sum().reset_index()
+
+            hourly.columns = [
+                "Hour",
+                "Fraud_Count"
+            ]
+
+            fig = px.line(
+                hourly,
+                x="Hour",
+                y="Fraud_Count",
+                markers=True,
+                title="Fraud Activity by Hour"
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        except Exception:
+            pass
+
+
+# ============================================================
+# FRAUD PATTERN INTELLIGENCE
+# ============================================================
+
+elif page == "🚨 Fraud Pattern Intelligence":
+
+    st.title(
+        "🚨 Fraud Pattern Intelligence"
+    )
+
+    st.subheader(
+        "Fraud Concentration"
+    )
+
+    fraud_features = []
+
+    for column in df.columns:
+
+        if column == target:
+            continue
+
+        if pd.api.types.is_numeric_dtype(
+            df[column]
+        ):
+
+            normal_mean = analysis_df.loc[
+                analysis_df["Fraud_Label"] == 0,
+                column
+            ].mean()
+
+            fraud_mean = analysis_df.loc[
+                analysis_df["Fraud_Label"] == 1,
+                column
+            ].mean()
+
+            if pd.notna(normal_mean) and pd.notna(
+                fraud_mean
+            ):
+
+                difference = abs(
+                    fraud_mean - normal_mean
+                )
+
+                fraud_features.append(
+                    {
+                        "Feature": column,
+                        "Normal Mean": normal_mean,
+                        "Fraud Mean": fraud_mean,
+                        "Difference": difference
+                    }
+                )
+
+    if fraud_features:
+
+        feature_df = pd.DataFrame(
+            fraud_features
+        ).sort_values(
+            "Difference",
+            ascending=False
+        )
+
+        st.dataframe(
+            feature_df.head(20),
+            use_container_width=True
+        )
+
+        fig = px.bar(
+            feature_df.head(15).sort_values(
+                "Difference"
+            ),
+            x="Difference",
+            y="Feature",
+            orientation="h",
+            title="Features Showing Strongest Fraud/Normal Difference"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    if amount_column is not None:
+
+        st.subheader(
+            "Fraud Amount Intelligence"
+        )
+
+        amount_series = pd.to_numeric(
+            analysis_df[amount_column],
+            errors="coerce"
+        )
+
+        normal_amount = amount_series[
+            analysis_df["Fraud_Label"] == 0
+        ]
+
+        fraud_amount = amount_series[
+            analysis_df["Fraud_Label"] == 1
+        ]
+
+        metrics = pd.DataFrame(
+            {
+                "Metric": [
+                    "Average",
+                    "Median",
+                    "Maximum"
+                ],
+                "Normal": [
+                    normal_amount.mean(),
+                    normal_amount.median(),
+                    normal_amount.max()
+                ],
+                "Fraud": [
+                    fraud_amount.mean(),
+                    fraud_amount.median(),
+                    fraud_amount.max()
+                ]
+            }
+        )
+
+        st.dataframe(
+            metrics,
+            use_container_width=True
+        )
+
+
+# ============================================================
+# AI RISK ENGINE
+# ============================================================
+
+elif page == "🤖 AI Risk Engine":
+
+    st.title(
+        "🤖 AI Risk Engine"
+    )
+
+    st.write(
+        """
+        This engine combines supervised machine learning
+        with unsupervised anomaly detection.
+        """
+    )
+
+    st.markdown(
+        """
+        **Random Forest**
+        → learns known fraud patterns
+
+        **Isolation Forest**
+        → detects unusual transaction behavior
+
+        **Risk Engine**
+        → combines both signals into a 0–100 risk score
+        """
+    )
+
+    if st.button(
+        "🚀 Train Advanced Fraud Engine",
+        use_container_width=True
+    ):
+
+        with st.spinner(
+            "Training AI fraud and anomaly models..."
+        ):
+
+            X = analysis_df.drop(
+                columns=[
+                    target,
+                    "Fraud_Label"
+                ]
+            )
+
+            y = analysis_df[
+                "Fraud_Label"
+            ]
+
+            if y.nunique() != 2:
+
+                st.error(
+                    "Target must contain exactly two classes."
+                )
+
+                st.stop()
+
+            X_train, X_test, y_train, y_test = (
+                train_test_split(
+                    X,
+                    y,
+                    test_size=0.20,
+                    random_state=42,
+                    stratify=y
+                )
+            )
+
+            preprocessor = create_preprocessor(
+                X_train
+            )
+
+            X_train_processed = (
+                preprocessor.fit_transform(
+                    X_train
+                )
+            )
+
+            X_test_processed = (
+                preprocessor.transform(
+                    X_test
+                )
+            )
+
+            try:
+
+                smote = SMOTE(
+                    random_state=42
+                )
+
+                X_train_balanced, y_train_balanced = (
+                    smote.fit_resample(
+                        X_train_processed,
+                        y_train
+                    )
+                )
+
+            except Exception:
+
+                X_train_balanced = (
+                    X_train_processed
+                )
+
+                y_train_balanced = y_train
+
+            model = RandomForestClassifier(
+                n_estimators=200,
+                max_depth=None,
+                min_samples_split=2,
+                random_state=42,
+                n_jobs=-1,
+                class_weight="balanced"
+            )
+
+            model.fit(
+                X_train_balanced,
+                y_train_balanced
+            )
+
+            predictions = model.predict(
+                X_test_processed
+            )
+
+            probabilities = model.predict_proba(
+                X_test_processed
+            )[:, 1]
+
+            anomaly_model = IsolationForest(
+                n_estimators=150,
+                contamination="auto",
+                random_state=42,
+                n_jobs=-1
+            )
+
+            anomaly_model.fit(
+                X_train_processed
+            )
+
+            anomaly_raw = (
+                -anomaly_model.decision_function(
+                    X_test_processed
+                )
+            )
+
+            anomaly_min = anomaly_raw.min()
+            anomaly_max = anomaly_raw.max()
+
+            if anomaly_max != anomaly_min:
+
+                anomaly_scores = (
+                    anomaly_raw - anomaly_min
+                ) / (
+                    anomaly_max - anomaly_min
+                )
+
+            else:
+
+                anomaly_scores = np.zeros(
+                    len(anomaly_raw)
+                )
+
+            risk_scores = [
+                calculate_risk(
+                    probability,
+                    anomaly
+                )
+                for probability, anomaly
+                in zip(
+                    probabilities,
+                    anomaly_scores
+                )
+            ]
+
+            categories = [
+                risk_category(score)
+                for score in risk_scores
+            ]
+
+            accuracy = accuracy_score(
+                y_test,
+                predictions
+            )
+
+            precision = precision_score(
+                y_test,
+                predictions,
+                zero_division=0
+            )
+
+            recall = recall_score(
+                y_test,
+                predictions,
+                zero_division=0
+            )
+
+            f1 = f1_score(
+                y_test,
+                predictions,
+                zero_division=0
+            )
+
+            auc = roc_auc_score(
+                y_test,
+                probabilities
+            )
+
+            metrics = pd.DataFrame(
+                {
+                    "Metric": [
+                        "Accuracy",
+                        "Precision",
+                        "Recall",
+                        "F1 Score",
+                        "ROC-AUC"
+                    ],
+                    "Score": [
+                        accuracy,
+                        precision,
+                        recall,
+                        f1,
+                        auc
+                    ]
+                }
+            )
+
+            st.session_state.model = {
+                "model": model,
+                "X_test": X_test,
+                "y_test": y_test,
+                "predictions": predictions,
+                "probabilities": probabilities,
+                "anomaly_scores": anomaly_scores,
+                "risk_scores": risk_scores,
+                "categories": categories
+            }
+
+            st.session_state.preprocessor = (
+                preprocessor
+            )
+
+            st.session_state.anomaly_model = (
+                anomaly_model
+            )
+
+            st.session_state.metrics = (
+                metrics
+            )
+
+            st.session_state.feature_names = (
+                get_feature_names(
+                    preprocessor
+                )
+            )
+
+            st.session_state.numeric_columns = (
+                X_train.select_dtypes(
+                    include=np.number
+                ).columns.tolist()
+            )
+
+            st.session_state.categorical_columns = (
+                X_train.select_dtypes(
+                    exclude=np.number
+                ).columns.tolist()
+            )
+
+            st.session_state.training_columns = (
+                X.columns.tolist()
+            )
+
+            st.session_state.training_means = (
+                X_train.select_dtypes(
+                    include=np.number
+                ).mean()
+            )
+
+            feature_names = (
+                st.session_state.feature_names
+            )
+
+            if hasattr(
+                model,
+                "feature_importances_"
+            ):
+
+                importance_df = pd.DataFrame(
+                    {
+                        "Feature": feature_names,
+                        "Importance":
+                            model.feature_importances_
+                    }
+                ).sort_values(
+                    "Importance",
+                    ascending=False
+                )
+
+                st.session_state.feature_importance = (
+                    importance_df
+                )
+
+            joblib.dump(
+                model,
+                "advanced_fraud_model.pkl"
+            )
+
+            joblib.dump(
+                preprocessor,
+                "advanced_preprocessor.pkl"
+            )
+
+            joblib.dump(
+                anomaly_model,
+                "anomaly_model.pkl"
+            )
+
+            st.success(
+                "Advanced AI Risk Engine trained successfully!"
+            )
+
+    if st.session_state.model is not None:
+
+        model_data = st.session_state.model
+
+        risk_array = np.array(
+            model_data["risk_scores"]
+        )
+
+        critical = int(
+            (risk_array >= 85).sum()
+        )
+
+        high = int(
+            (
+                (risk_array >= 70)
+                &
+                (risk_array < 85)
+            ).sum()
+        )
+
+        medium = int(
+            (
+                (risk_array >= 40)
+                &
+                (risk_array < 70)
+            ).sum()
+        )
+
+        low = int(
+            (risk_array < 40).sum()
+        )
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "🔴 Critical",
+            critical
+        )
+
+        c2.metric(
+            "🟠 High",
+            high
+        )
+
+        c3.metric(
+            "🟡 Medium",
+            medium
+        )
+
+        c4.metric(
+            "🟢 Low",
+            low
+        )
+
+        st.subheader(
+            "Risk Distribution"
+        )
+
+        risk_df = pd.DataFrame(
+            {
+                "Risk": [
+                    "Critical",
+                    "High",
+                    "Medium",
+                    "Low"
+                ],
+                "Count": [
+                    critical,
+                    high,
+                    medium,
+                    low
+                ]
+            }
+        )
+
+        fig = px.bar(
+            risk_df,
+            x="Risk",
+            y="Count",
+            text="Count",
+            title="AI Risk Distribution"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+
+# ============================================================
+# INVESTIGATION CENTER
+# ============================================================
+
+elif page == "🔍 Investigation Center":
+
+    st.title(
+        "🔍 Fraud Investigation Center"
+    )
+
+    if st.session_state.model is None:
+
+        st.warning(
+            "Train the AI Risk Engine first."
+        )
+
         st.stop()
 
-    results = st.session_state.results
+    model_data = st.session_state.model
+
+    test_data = (
+        model_data["X_test"]
+        .copy()
+        .reset_index(drop=True)
+    )
+
+    result = test_data.copy()
+
+    result["Fraud Probability"] = (
+        model_data["probabilities"] * 100
+    ).round(2)
+
+    result["Anomaly Score"] = (
+        model_data["anomaly_scores"] * 100
+    ).round(2)
+
+    result["Risk Score"] = (
+        np.array(
+            model_data["risk_scores"]
+        ).round(2)
+    )
+
+    result["Risk Level"] = (
+        model_data["categories"]
+    )
+
+    result["Priority"] = (
+        result["Risk Score"]
+        .rank(
+            ascending=False,
+            method="first"
+        )
+        .astype(int)
+    )
+
+    result = result.sort_values(
+        "Risk Score",
+        ascending=False
+    )
+
+    st.subheader(
+        "🚨 Investigation Priority Queue"
+    )
+
+    priority_filter = st.multiselect(
+        "Risk Levels",
+        [
+            "CRITICAL",
+            "HIGH",
+            "MEDIUM",
+            "LOW"
+        ],
+        default=[
+            "CRITICAL",
+            "HIGH"
+        ]
+    )
+
+    filtered = result[
+        result["Risk Level"].isin(
+            priority_filter
+        )
+    ]
 
     st.dataframe(
-        results.style.format({
-            "Accuracy": "{:.4f}",
-            "Precision": "{:.4f}",
-            "Recall": "{:.4f}",
-            "F1 Score": "{:.4f}",
-            "ROC-AUC": "{:.4f}"
-        }),
+        filtered.head(100),
         use_container_width=True
     )
 
-    metric = st.selectbox(
-        "Performance Metric",
-        ["Accuracy", "Precision", "Recall", "F1 Score", "ROC-AUC"]
+    st.download_button(
+        "📥 Download Investigation Queue",
+        filtered.to_csv(index=False),
+        "fraud_investigation_queue.csv",
+        "text/csv"
     )
 
-    fig = px.bar(
-        results, x="Model", y=metric,
-        text=metric, title=f"{metric} Comparison"
-    )
-    fig.update_yaxes(range=[0, 1])
-    st.plotly_chart(fig, use_container_width=True)
+    st.divider()
 
-    if st.session_state.feature_importance is not None:
-        st.subheader("Top Fraud Detection Features")
-        top = st.session_state.feature_importance.head(20)
-        fig = px.bar(
-            top.sort_values("Importance"),
-            x="Importance", y="Feature",
-            orientation="h",
-            title="Top 20 Feature Importance"
+    if len(result) > 0:
+
+        selected_index = st.selectbox(
+            "Select transaction for investigation",
+            result.index.tolist()
         )
-        st.plotly_chart(fig, use_container_width=True)
 
-    data = st.session_state.model
-    cm = confusion_matrix(data["y_test"], data["predictions"])
+        selected = result.loc[
+            selected_index
+        ]
 
-    st.subheader("Random Forest Confusion Matrix")
-    fig = px.imshow(
-        cm, text_auto=True,
-        x=["Predicted Normal", "Predicted Fraud"],
-        y=["Actual Normal", "Actual Fraud"]
+        probability = (
+            selected["Fraud Probability"]
+            /
+            100
+        )
+
+        anomaly = (
+            selected["Anomaly Score"]
+            /
+            100
+        )
+
+        risk = selected[
+            "Risk Score"
+        ]
+
+        category = selected[
+            "Risk Level"
+        ]
+
+        st.subheader(
+            "Transaction Investigation"
+        )
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "Fraud Probability",
+            f"{probability * 100:.2f}%"
+        )
+
+        c2.metric(
+            "Anomaly Score",
+            f"{anomaly * 100:.2f}%"
+        )
+
+        c3.metric(
+            "Final Risk Score",
+            f"{risk:.1f}/100"
+        )
+
+        c4.metric(
+            "Risk Level",
+            f"{risk_symbol(category)} {category}"
+        )
+
+        reference_amount = None
+
+        if amount_column is not None:
+
+            try:
+
+                reference_amount = pd.to_numeric(
+                    analysis_df.loc[
+                        analysis_df["Fraud_Label"] == 0,
+                        amount_column
+                    ],
+                    errors="coerce"
+                ).median()
+
+            except Exception:
+                reference_amount = None
+
+        reasons = generate_reasons(
+            selected,
+            probability,
+            anomaly,
+            amount_column,
+            reference_amount
+        )
+
+        st.subheader(
+            "🧠 Why Was This Transaction Flagged?"
+        )
+
+        for reason in reasons:
+
+            st.warning(
+                f"• {reason}"
+            )
+
+        if category in [
+            "CRITICAL",
+            "HIGH"
+        ]:
+
+            st.error(
+                "Recommended Action: Send transaction "
+                "for manual fraud investigation."
+            )
+
+        elif category == "MEDIUM":
+
+            st.warning(
+                "Recommended Action: Perform additional verification."
+            )
+
+        else:
+
+            st.success(
+                "Recommended Action: Low immediate risk."
+            )
+
+
+# ============================================================
+# WHAT-IF ANALYSIS
+# ============================================================
+
+elif page == "🧪 What-If Analysis":
+
+    st.title(
+        "🧪 What-If Risk Analysis"
     )
-    st.plotly_chart(fig, use_container_width=True)
+
+    if st.session_state.model is None:
+
+        st.warning(
+            "Train the AI Risk Engine first."
+        )
+
+        st.stop()
+
+    model = st.session_state.model[
+        "model"
+    ]
+
+    preprocessor = (
+        st.session_state.preprocessor
+    )
+
+    training_columns = (
+        st.session_state.training_columns
+    )
+
+    base = {}
+
+    for column in training_columns:
+
+        if column in df.columns:
+
+            if pd.api.types.is_numeric_dtype(
+                df[column]
+            ):
+
+                base[column] = pd.to_numeric(
+                    df[column],
+                    errors="coerce"
+                ).median()
+
+            else:
+
+                mode = df[column].mode()
+
+                if len(mode) > 0:
+                    base[column] = mode.iloc[0]
+                else:
+                    base[column] = ""
+
+    st.write(
+        "Change available numeric transaction features "
+        "and observe how the predicted fraud probability changes."
+    )
+
+    editable = {}
+
+    numeric_training = [
+        column
+        for column in training_columns
+        if column in df.columns
+        and pd.api.types.is_numeric_dtype(
+            df[column]
+        )
+    ]
+
+    important_numeric = numeric_training[:12]
+
+    for column in important_numeric:
+
+        values = pd.to_numeric(
+            df[column],
+            errors="coerce"
+        ).dropna()
+
+        if len(values) == 0:
+            continue
+
+        min_value = float(
+            values.quantile(0.01)
+        )
+
+        max_value = float(
+            values.quantile(0.99)
+        )
+
+        if min_value == max_value:
+            continue
+
+        editable[column] = st.slider(
+            column,
+            min_value=min_value,
+            max_value=max_value,
+            value=float(
+                np.clip(
+                    values.median(),
+                    min_value,
+                    max_value
+                )
+            )
+        )
+
+    if st.button(
+        "🔮 Calculate New Risk",
+        use_container_width=True
+    ):
+
+        input_row = base.copy()
+
+        for column, value in editable.items():
+            input_row[column] = value
+
+        input_df = pd.DataFrame(
+            [input_row]
+        )
+
+        input_df = input_df[
+            training_columns
+        ]
+
+        processed = preprocessor.transform(
+            input_df
+        )
+
+        probability = model.predict_proba(
+            processed
+        )[0, 1]
+
+        anomaly_model = (
+            st.session_state.anomaly_model
+        )
+
+        anomaly_raw = -anomaly_model.decision_function(
+            processed
+        )[0]
+
+        anomaly_score = float(
+            np.clip(
+                (
+                    anomaly_raw + 0.5
+                ),
+                0,
+                1
+            )
+        )
+
+        risk = calculate_risk(
+            probability,
+            anomaly_score
+        )
+
+        category = risk_category(
+            risk
+        )
+
+        st.divider()
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric(
+            "Fraud Probability",
+            f"{probability * 100:.2f}%"
+        )
+
+        c2.metric(
+            "Anomaly Score",
+            f"{anomaly_score * 100:.2f}%"
+        )
+
+        c3.metric(
+            "AI Risk Score",
+            f"{risk:.1f}/100"
+        )
+
+        st.subheader(
+            f"{risk_symbol(category)} {category} RISK"
+        )
+
+        gauge = go.Figure(
+            go.Indicator(
+                mode="gauge+number",
+                value=risk,
+                title={
+                    "text": "AI Risk Score"
+                },
+                gauge={
+                    "axis": {
+                        "range": [0, 100]
+                    }
+                }
+            )
+        )
+
+        st.plotly_chart(
+            gauge,
+            use_container_width=True
+        )
+
+
+# ============================================================
+# MODEL PERFORMANCE
+# ============================================================
+
+elif page == "📈 Model Performance":
+
+    st.title(
+        "📈 Model Performance & Explainability"
+    )
+
+    if st.session_state.model is None:
+
+        st.warning(
+            "Train the AI Risk Engine first."
+        )
+
+        st.stop()
+
+    model_data = st.session_state.model
+
+    y_test = model_data["y_test"]
+
+    predictions = model_data[
+        "predictions"
+    ]
+
+    probabilities = model_data[
+        "probabilities"
+    ]
+
+    accuracy = accuracy_score(
+        y_test,
+        predictions
+    )
+
+    precision = precision_score(
+        y_test,
+        predictions,
+        zero_division=0
+    )
+
+    recall = recall_score(
+        y_test,
+        predictions,
+        zero_division=0
+    )
+
+    f1 = f1_score(
+        y_test,
+        predictions,
+        zero_division=0
+    )
+
+    auc = roc_auc_score(
+        y_test,
+        probabilities
+    )
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+
+    c1.metric(
+        "Accuracy",
+        f"{accuracy:.3f}"
+    )
+
+    c2.metric(
+        "Precision",
+        f"{precision:.3f}"
+    )
+
+    c3.metric(
+        "Recall",
+        f"{recall:.3f}"
+    )
+
+    c4.metric(
+        "F1 Score",
+        f"{f1:.3f}"
+    )
+
+    c5.metric(
+        "ROC-AUC",
+        f"{auc:.3f}"
+    )
+
+    st.divider()
+
+    cm = confusion_matrix(
+        y_test,
+        predictions
+    )
+
+    st.subheader(
+        "Confusion Matrix"
+    )
+
+    fig = px.imshow(
+        cm,
+        text_auto=True,
+        x=[
+            "Predicted Normal",
+            "Predicted Fraud"
+        ],
+        y=[
+            "Actual Normal",
+            "Actual Fraud"
+        ],
+        title="Fraud Detection Confusion Matrix"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+    st.subheader(
+        "ROC Curve"
+    )
+
+    fpr, tpr, thresholds = roc_curve(
+        y_test,
+        probabilities
+    )
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=fpr,
+            y=tpr,
+            mode="lines",
+            name=f"Random Forest AUC = {auc:.3f}"
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=[0, 1],
+            y=[0, 1],
+            mode="lines",
+            name="Random Baseline"
+        )
+    )
+
+    fig.update_layout(
+        title="ROC Curve",
+        xaxis_title="False Positive Rate",
+        yaxis_title="True Positive Rate"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+    st.subheader(
+        "Feature Importance"
+    )
+
+    importance_df = (
+        st.session_state.feature_importance
+    )
+
+    if importance_df is not None:
+
+        top_features = (
+            importance_df
+            .head(20)
+            .sort_values(
+                "Importance"
+            )
+        )
+
+        fig = px.bar(
+            top_features,
+            x="Importance",
+            y="Feature",
+            orientation="h",
+            title="Top Fraud Detection Features"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    st.subheader(
+        "Classification Report"
+    )
 
     report = classification_report(
-        data["y_test"],
-        data["predictions"],
+        y_test,
+        predictions,
         output_dict=True,
         zero_division=0
     )
-    st.subheader("Classification Report")
+
+    report_df = pd.DataFrame(
+        report
+    ).transpose()
+
     st.dataframe(
-        pd.DataFrame(report).transpose(),
+        report_df,
         use_container_width=True
     )
 
 
-elif page == "🔍 Risk Prediction":
-    st.title("🔍 Transaction Risk Prediction")
+# ============================================================
+# MODEL MONITORING
+# ============================================================
 
-    if st.session_state.model is None:
-        st.warning("Train the model first.")
+elif page == "📡 Model Monitoring":
+
+    st.title(
+        "📡 Model & Data Monitoring"
+    )
+
+    if st.session_state.training_means is None:
+
+        st.warning(
+            "Train the AI Risk Engine first."
+        )
+
         st.stop()
 
-    prediction_file = st.file_uploader(
-        "Upload transactions for prediction",
-        type=["csv", "xlsx", "xls"],
-        key="prediction_upload"
+    st.subheader(
+        "Training Data Reference"
     )
 
-    if prediction_file is not None:
-        try:
-            pred_df = load_file(prediction_file)
-            original = pred_df.copy()
+    training_means = (
+        st.session_state.training_means
+    )
 
-            if target in pred_df.columns:
-                pred_df = pred_df.drop(columns=[target])
+    current_means = df[
+        training_means.index
+    ].apply(
+        pd.to_numeric,
+        errors="coerce"
+    ).mean()
 
-            model = st.session_state.model["model"]
-            prep = st.session_state.preprocessor
+    drift_rows = []
 
-            X_pred = prep.transform(pred_df)
-            probabilities = model.predict_proba(X_pred)[:, 1]
-            predictions = model.predict(X_pred)
+    for column in training_means.index:
 
-            result = original.copy()
-            result["Fraud Probability (%)"] = np.round(
-                probabilities * 100, 2
-            )
-            result["Prediction"] = np.where(
-                predictions == 1,
-                "Potential Fraud",
-                "Normal"
-            )
-            result["Risk Level"] = pd.cut(
-                probabilities,
-                bins=[-0.01, .30, .70, 1.01],
-                labels=["Low", "Medium", "High"]
-            )
+        train_value = training_means[
+            column
+        ]
 
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Transactions Analyzed", len(result))
-            c2.metric(
-                "Potential Fraud",
-                int((predictions == 1).sum())
-            )
-            c3.metric(
-                "High Risk",
-                int((probabilities >= .70).sum())
-            )
+        current_value = current_means[
+            column
+        ]
 
-            st.dataframe(result, use_container_width=True)
+        if pd.isna(
+            train_value
+        ) or pd.isna(
+            current_value
+        ):
 
-            st.download_button(
-                "Download Prediction Results",
-                result.to_csv(index=False),
-                "fraud_prediction_results.csv",
-                "text/csv"
-            )
+            continue
 
-        except Exception as e:
-            st.error(f"Prediction error: {e}")
+        if train_value == 0:
+
+            drift_percentage = 0
+
+        else:
+
+            drift_percentage = abs(
+                current_value - train_value
+            ) / abs(
+                train_value
+            ) * 100
+
+        if drift_percentage >= 50:
+
+            status = "🔴 High Drift"
+
+        elif drift_percentage >= 20:
+
+            status = "🟠 Moderate Drift"
+
+        else:
+
+            status = "🟢 Low Drift"
+
+        drift_rows.append(
+            {
+                "Feature": column,
+                "Training Mean": train_value,
+                "Current Mean": current_value,
+                "Drift %": drift_percentage,
+                "Status": status
+            }
+        )
+
+    if drift_rows:
+
+        drift_df = pd.DataFrame(
+            drift_rows
+        ).sort_values(
+            "Drift %",
+            ascending=False
+        )
+
+        st.dataframe(
+            drift_df,
+            use_container_width=True
+        )
+
+        fig = px.bar(
+            drift_df.head(20),
+            x="Drift %",
+            y="Feature",
+            orientation="h",
+            title="Top Feature Distribution Changes"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
 
     st.info(
-        "Risk thresholds used for dashboard presentation: "
-        "Low <30%, Medium 30–70%, High >70%."
+        "This monitoring page provides a simple analytical drift indicator "
+        "by comparing feature means. It is intended for project monitoring, "
+        "not production regulatory monitoring."
     )
 
 
-elif page == "📋 Dataset":
-    st.title("📋 Dataset Explorer")
+# ============================================================
+# DATASET EXPLORER
+# ============================================================
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Rows", f"{df.shape[0]:,}")
-    c2.metric("Columns", df.shape[1])
+elif page == "📋 Dataset Explorer":
+
+    st.title(
+        "📋 Dataset Explorer"
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric(
+        "Rows",
+        f"{df.shape[0]:,}"
+    )
+
+    c2.metric(
+        "Columns",
+        df.shape[1]
+    )
+
     c3.metric(
+        "Duplicates",
+        f"{df.duplicated().sum():,}"
+    )
+
+    c4.metric(
         "Missing Values",
         f"{df.isnull().sum().sum():,}"
     )
 
-    st.subheader("Dataset Preview")
-    n = st.slider(
-        "Rows to display",
-        5, min(100, len(df)), 10
+    st.subheader(
+        "Dataset Preview"
     )
+
     st.dataframe(
-        df.head(n),
+        df.head(100),
         use_container_width=True
     )
 
-    st.subheader("Column Information")
-    info = pd.DataFrame({
-        "Column": df.columns,
-        "Data Type": [str(x) for x in df.dtypes],
-        "Missing Values": [df[c].isnull().sum() for c in df.columns],
-        "Unique Values": [df[c].nunique() for c in df.columns]
-    })
-    st.dataframe(info, use_container_width=True)
+    st.subheader(
+        "Column Information"
+    )
 
-    st.subheader("Statistical Summary")
+    info = pd.DataFrame(
+        {
+            "Column": df.columns,
+            "Data Type": [
+                str(dtype)
+                for dtype in df.dtypes
+            ],
+            "Missing": [
+                df[c].isnull().sum()
+                for c in df.columns
+            ],
+            "Unique": [
+                df[c].nunique()
+                for c in df.columns
+            ]
+        }
+    )
+
     st.dataframe(
-        df.describe(include="all").transpose(),
+        info,
         use_container_width=True
     )
 
-st.sidebar.divider()
-st.sidebar.caption("Financial Fraud Detection & Risk Analytics")
+    st.subheader(
+        "Statistical Summary"
+    )
+
+    st.dataframe(
+        df.describe(
+            include="all"
+        ).transpose(),
+        use_container_width=True
+    )
+
+    st.download_button(
+        "📥 Download Dataset",
+        df.to_csv(index=False),
+        "financial_fraud_dataset.csv",
+        "text/csv"
+    )
