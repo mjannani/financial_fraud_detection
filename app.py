@@ -2355,20 +2355,5 @@ elif page == "📋 Dataset Explorer":
         "financial_fraud_dataset.csv",
         "text/csv"
     )
-முக்கியமாக மாற்றப்பட்டது
-உங்க original code-ல் இருந்த:
 
-def clean_dataframe(df):
 
-    df = df.copy()
-
-    df.columns = [
-        str(c).strip()
-        .replace(" ", "_")
-        .replace("-", "_")
-        .replace("/", "_")
-    ]
-
-    df = df.drop_duplicates()
-
-    return df
