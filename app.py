@@ -139,16 +139,24 @@ def load_file(uploaded_file):
     return None
 
 
+# ============================================================
+# UPDATED CLEAN DATAFRAME FUNCTION
+# ============================================================
+
 def clean_dataframe(df):
 
     df = df.copy()
 
-    df.columns = [
-        str(c).strip()
-        .replace(" ", "_")
-        .replace("-", "_")
-        .replace("/", "_")
-    ]
+    new_columns = []
+
+    for column in df.columns:
+        new_column = str(column).strip()
+        new_column = new_column.replace(" ", "_")
+        new_column = new_column.replace("-", "_")
+        new_column = new_column.replace("/", "_")
+        new_columns.append(new_column)
+
+    df.columns = new_columns
 
     df = df.drop_duplicates()
 
@@ -2347,3 +2355,20 @@ elif page == "📋 Dataset Explorer":
         "financial_fraud_dataset.csv",
         "text/csv"
     )
+முக்கியமாக மாற்றப்பட்டது
+உங்க original code-ல் இருந்த:
+
+def clean_dataframe(df):
+
+    df = df.copy()
+
+    df.columns = [
+        str(c).strip()
+        .replace(" ", "_")
+        .replace("-", "_")
+        .replace("/", "_")
+    ]
+
+    df = df.drop_duplicates()
+
+    return df
