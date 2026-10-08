@@ -4,8 +4,6 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
-
-pio.templates.default = "plotly_white"
 import joblib
 
 from sklearn.model_selection import train_test_split
@@ -22,8 +20,9 @@ from sklearn.metrics import (
     roc_auc_score,
     confusion_matrix,
     classification_report,
-    roc_curve
+    roc_curve,
 )
+
 from imblearn.over_sampling import SMOTE
 
 
@@ -35,129 +34,103 @@ st.set_page_config(
     page_title="Financial Fraud Intelligence",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
+pio.templates.default = "plotly_white"
 
-#  ============================================================
-# CUSTOM CSS - FIXED VISIBILITY
+
+# ============================================================
+# FIXED LIGHT THEME CSS
 # ============================================================
 
-st.markdown("""
+st.markdown(
+    """
 <style>
 
-/* ============================================================
-   MAIN APP BACKGROUND
-   ============================================================ */
+/* =========================================================
+   GLOBAL APP
+   ========================================================= */
 
+html,
+body,
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewContainer"] > div,
 .stApp {
     background-color: #f5f7fb !important;
+    color: #111827 !important;
 }
 
 /* Main content area */
 [data-testid="stAppViewContainer"] .main {
     background-color: #f5f7fb !important;
+    color: #111827 !important;
 }
 
-/* Main block container */
+/* Main block */
 [data-testid="stAppViewContainer"] .main .block-container {
     background-color: #f5f7fb !important;
-}
-
-
-/* ============================================================
-   MAIN CONTENT TEXT
-   IMPORTANT: Do NOT apply this to sidebar
-   ============================================================ */
-
-/* Normal markdown text */
-[data-testid="stAppViewContainer"] .main
-[data-testid="stMarkdownContainer"] p {
     color: #111827 !important;
+    padding-top: 2.5rem !important;
+    padding-bottom: 3rem !important;
 }
 
-/* Markdown headings */
-[data-testid="stAppViewContainer"] .main
-[data-testid="stMarkdownContainer"] h1,
-[data-testid="stAppViewContainer"] .main
-[data-testid="stMarkdownContainer"] h2,
-[data-testid="stAppViewContainer"] .main
-[data-testid="stMarkdownContainer"] h3,
-[data-testid="stAppViewContainer"] .main
-[data-testid="stMarkdownContainer"] h4,
-[data-testid="stAppViewContainer"] .main
-[data-testid="stMarkdownContainer"] h5,
-[data-testid="stAppViewContainer"] .main
-[data-testid="stMarkdownContainer"] h6 {
-    color: #111827 !important;
-}
 
-/* General main content text */
+/* =========================================================
+   FORCE MAIN TEXT TO DARK
+   ========================================================= */
+
 [data-testid="stAppViewContainer"] .main p,
+[data-testid="stAppViewContainer"] .main span,
+[data-testid="stAppViewContainer"] .main label,
 [data-testid="stAppViewContainer"] .main li,
-[data-testid="stAppViewContainer"] .main label {
+[data-testid="stAppViewContainer"] .main small,
+[data-testid="stAppViewContainer"] .main div {
+    color: #111827;
+}
+
+/* Markdown text */
+[data-testid="stMarkdownContainer"] {
     color: #111827 !important;
 }
 
-/* Main headings */
-[data-testid="stAppViewContainer"] .main h1,
-[data-testid="stAppViewContainer"] .main h2,
-[data-testid="stAppViewContainer"] .main h3,
-[data-testid="stAppViewContainer"] .main h4 {
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li {
+    color: #111827 !important;
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     color: #111827 !important;
 }
 
 
-/* ============================================================
-   METRIC CARDS
-   ============================================================ */
-
-[data-testid="stMetric"] {
-    background-color: #ffffff !important;
-    border: 1px solid #d1d5db !important;
-    border-radius: 14px !important;
-    padding: 18px !important;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08) !important;
-}
-
-/* Metric label */
-[data-testid="stMetric"] [data-testid="stMetricLabel"],
-[data-testid="stMetric"] [data-testid="stMetricLabel"] *,
-[data-testid="stMetric"] label,
-[data-testid="stMetric"] label * {
-    color: #4b5563 !important;
-    font-weight: 600 !important;
-}
-
-/* Metric value */
-[data-testid="stMetric"] [data-testid="stMetricValue"],
-[data-testid="stMetric"] [data-testid="stMetricValue"] *,
-[data-testid="stMetric"] [data-testid="stMetricValue"] div,
-[data-testid="stMetric"] [data-testid="stMetricValue"] span {
-    color: #111827 !important;
-    font-weight: 700 !important;
-}
-
-/* Metric delta */
-[data-testid="stMetric"] [data-testid="stMetricDelta"],
-[data-testid="stMetric"] [data-testid="stMetricDelta"] * {
-    color: #374151 !important;
-}
-
-
-/* ============================================================
+/* =========================================================
    SIDEBAR
-   ============================================================ */
+   ========================================================= */
 
 [data-testid="stSidebar"] {
     background-color: #111827 !important;
+    border-right: 1px solid #1f2937 !important;
 }
 
-/* Sidebar text */
+[data-testid="stSidebar"] > div {
+    background-color: #111827 !important;
+}
+
 [data-testid="stSidebar"] p,
 [data-testid="stSidebar"] span,
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] div,
+[data-testid="stSidebar"] small {
+    color: #ffffff !important;
+}
+
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3,
@@ -165,290 +138,280 @@ st.markdown("""
     color: #ffffff !important;
 }
 
-/* Sidebar title */
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1,
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2,
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
-    color: #ffffff !important;
-}
 
+/* =========================================================
+   SIDEBAR INPUTS
+   ========================================================= */
 
-/* ============================================================
-   SIDEBAR FILE UPLOADER
-   ============================================================ */
-
-[data-testid="stSidebar"] [data-testid="stFileUploader"] {
-    background-color: #0b1220 !important;
-    border-radius: 10px !important;
-}
-
-[data-testid="stSidebar"] [data-testid="stFileUploader"] section {
-    background-color: #0b1220 !important;
-    border-color: #374151 !important;
-}
-
-[data-testid="stSidebar"] [data-testid="stFileUploader"] button {
-    background-color: #374151 !important;
-    color: #ffffff !important;
-    border: 1px solid #4b5563 !important;
-}
-
-
-/* ============================================================
-   SIDEBAR SELECTBOX / RADIO
-   ============================================================ */
-
-[data-testid="stSidebar"] [data-baseweb="select"] {
-    background-color: #111827 !important;
-}
-
-[data-testid="stSidebar"] [data-baseweb="select"] * {
-    color: #ffffff !important;
-}
-
-[data-testid="stSidebar"] [role="radiogroup"] label {
-    color: #ffffff !important;
-}
-
-
-/* ============================================================
-   MAIN SELECTBOX
-   ============================================================ */
-
-[data-testid="stAppViewContainer"] .main
-[data-baseweb="select"] {
+[data-testid="stSidebar"] input {
+    color: #111827 !important;
     background-color: #ffffff !important;
 }
 
-[data-testid="stAppViewContainer"] .main
-[data-baseweb="select"] * {
+[data-testid="stSidebar"] textarea {
     color: #111827 !important;
+    background-color: #ffffff !important;
 }
 
 
-/* ============================================================
-   TEXT INPUT / NUMBER INPUT
-   ============================================================ */
+/* =========================================================
+   FILE UPLOADER
+   ========================================================= */
 
-[data-testid="stAppViewContainer"] .main input,
+[data-testid="stFileUploader"] {
+    background-color: #0b1220 !important;
+    border-radius: 12px !important;
+    padding: 10px !important;
+}
+
+[data-testid="stFileUploader"] section {
+    background-color: #0b1220 !important;
+    border: 1px solid #374151 !important;
+}
+
+[data-testid="stFileUploader"] button {
+    background-color: #374151 !important;
+    color: #ffffff !important;
+    border: 1px solid #6b7280 !important;
+}
+
+[data-testid="stFileUploader"] button span {
+    color: #ffffff !important;
+}
+
+
+/* =========================================================
+   METRIC CARDS
+   ========================================================= */
+
+[data-testid="stMetric"] {
+    background-color: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 14px !important;
+    padding: 18px !important;
+    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Metric label */
+[data-testid="stMetricLabel"],
+[data-testid="stMetricLabel"] p,
+[data-testid="stMetricLabel"] div {
+    color: #6b7280 !important;
+    font-weight: 600 !important;
+}
+
+/* Metric value */
+[data-testid="stMetricValue"],
+[data-testid="stMetricValue"] div,
+[data-testid="stMetricValue"] span {
+    color: #111827 !important;
+    font-weight: 800 !important;
+}
+
+/* Metric delta */
+[data-testid="stMetricDelta"] {
+    color: #374151 !important;
+}
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.stButton > button {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 9px !important;
+    font-weight: 700 !important;
+    padding: 0.65rem 1rem !important;
+}
+
+.stButton > button:hover {
+    background-color: #1d4ed8 !important;
+    color: #ffffff !important;
+}
+
+
+/* =========================================================
+   SELECTBOX / INPUTS IN MAIN AREA
+   ========================================================= */
+
+[data-testid="stAppViewContainer"] .main input {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+}
+
 [data-testid="stAppViewContainer"] .main textarea {
     color: #111827 !important;
     background-color: #ffffff !important;
 }
 
-
-/* ============================================================
-   BUTTONS
-   ============================================================ */
-
-[data-testid="stAppViewContainer"] .main button {
-    color: #ffffff !important;
-    background-color: #2563eb !important;
-    border-radius: 8px !important;
-    border: none !important;
-    font-weight: 600 !important;
-}
-
-[data-testid="stAppViewContainer"] .main button:hover {
-    background-color: #1d4ed8 !important;
-}
-
-
-/* ============================================================
-   DATAFRAME
-   ============================================================ */
-
-[data-testid="stDataFrame"] {
+/* Selectbox visible area */
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
     background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
 }
 
-
-/* ============================================================
-   ALERT / INFO / WARNING / ERROR BOXES
-   ============================================================ */
-
-[data-testid="stAlert"] p,
-[data-testid="stAlert"] span,
-[data-testid="stAlert"] div {
+[data-testid="stSelectbox"] div[data-baseweb="select"] span {
     color: #111827 !important;
 }
 
 
-/* ============================================================
-   EXPANDERS
-   ============================================================ */
+/* =========================================================
+   DATAFRAME
+   ========================================================= */
 
-[data-testid="stExpander"] {
-    background-color: #ffffff !important;
-    border: 1px solid #d1d5db !important;
+[data-testid="stDataFrame"] {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+}
+
+
+/* =========================================================
+   ALERT BOXES
+   ========================================================= */
+
+[data-testid="stAlert"] {
     border-radius: 10px !important;
 }
 
-[data-testid="stExpander"] p,
-[data-testid="stExpander"] span,
-[data-testid="stExpander"] label {
-    color: #111827 !important;
+
+/* =========================================================
+   DOWNLOAD BUTTON
+   ========================================================= */
+
+[data-testid="stDownloadButton"] button {
+    background-color: #111827 !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+}
+
+[data-testid="stDownloadButton"] button:hover {
+    background-color: #1f2937 !important;
+    color: #ffffff !important;
 }
 
 
-/* ============================================================
-   CAPTION
-   ============================================================ */
-
-[data-testid="stAppViewContainer"] .main
-[data-testid="stCaptionContainer"] {
-    color: #4b5563 !important;
-}
-
-[data-testid="stAppViewContainer"] .main
-[data-testid="stCaptionContainer"] * {
-    color: #4b5563 !important;
-}
-
-
-/* ============================================================
+/* =========================================================
    DIVIDER
-   ============================================================ */
+   ========================================================= */
 
-[data-testid="stAppViewContainer"] .main hr {
+hr {
     border-color: #d1d5db !important;
 }
 
 
-/* ============================================================
+/* =========================================================
    LINKS
-   ============================================================ */
+   ========================================================= */
 
-[data-testid="stAppViewContainer"] .main a {
+a {
     color: #2563eb !important;
 }
 
 
-/* ============================================================
-   SLIDER
-   ============================================================ */
+/* =========================================================
+   RADIO BUTTONS
+   ========================================================= */
 
-[data-testid="stAppViewContainer"] .main
-[data-testid="stSlider"] label {
-    color: #111827 !important;
+[data-testid="stSidebar"] [role="radiogroup"] label {
+    color: #ffffff !important;
 }
 
-
-/* ============================================================
-   CHECKBOX
-   ============================================================ */
-
-[data-testid="stAppViewContainer"] .main
-[data-testid="stCheckbox"] label {
-    color: #111827 !important;
-}
-
-
-/* ============================================================
-   PLOTLY CONTAINER
-   ============================================================ */
-
-[data-testid="stPlotlyChart"] {
-    background-color: #ffffff !important;
-    border-radius: 12px !important;
-    padding: 5px !important;
-}
-
-
-/* ============================================================
-   DOWNLOAD BUTTON
-   ============================================================ */
-
-[data-testid="stDownloadButton"] button {
-    background-color: #2563eb !important;
+[data-testid="stSidebar"] [role="radiogroup"] label p {
     color: #ffffff !important;
 }
 
 
-/* ============================================================
-   REMOVE ANY WHITE TEXT FROM MAIN AREA
-   ============================================================ */
+/* =========================================================
+   EXPANDERS
+   ========================================================= */
 
-/* Markdown bold text */
-[data-testid="stAppViewContainer"] .main strong {
+[data-testid="stExpander"] {
+    background-color: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 10px !important;
+}
+
+[data-testid="stExpander"] summary {
     color: #111827 !important;
 }
 
-/* Markdown italic text */
-[data-testid="stAppViewContainer"] .main em {
-    color: #374151 !important;
-}
 
-/* Code / inline code */
-[data-testid="stAppViewContainer"] .main code {
+/* =========================================================
+   CHECKBOX
+   ========================================================= */
+
+[data-testid="stCheckbox"] label p {
     color: #111827 !important;
-    background-color: #e5e7eb !important;
 }
 
 
-/* ============================================================
-   SCROLLBAR
-   ============================================================ */
+/* =========================================================
+   SLIDER LABEL
+   ========================================================= */
 
-::-webkit-scrollbar {
-    width: 8px;
+[data-testid="stSlider"] label,
+[data-testid="stSlider"] label p {
+    color: #111827 !important;
 }
 
-::-webkit-scrollbar-track {
-    background: #f1f5f9;
+
+/* =========================================================
+   CAPTION
+   ========================================================= */
+
+[data-testid="stCaptionContainer"] {
+    color: #6b7280 !important;
 }
 
-::-webkit-scrollbar-thumb {
-    background: #94a3b8;
-    border-radius: 10px;
+[data-testid="stCaptionContainer"] p {
+    color: #6b7280 !important;
 }
 
-::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
+
+/* =========================================================
+   PLOTLY CONTAINER
+   ========================================================= */
+
+[data-testid="stPlotlyChart"] {
+    background-color: #ffffff !important;
+    border-radius: 12px !important;
+    padding: 4px !important;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    [data-testid="stAppViewContainer"] .main .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    h1 {
+        font-size: 2rem !important;
+    }
+
+    h2 {
+        font-size: 1.5rem !important;
+    }
+
 }
 
 </style>
-""", unsafe_allow_html=True)
-
-# ============================================================
-# CUSTOM CSS
-# ============================================================
-
-st.markdown("""
-<style>
-
-.stApp {
-    background-color: #f5f7fb !important;
-}
-
-/* METRIC CARD */
-
-[data-testid="stMetric"] {
-    ...
-}
-
-/* ALL METRIC TEXT */
-
-[data-testid="stMetric"] * {
-    color: #111827 !important;
-}
-
-...
-</style>
-""", unsafe_allow_html=True)
-
-
-st.set_page_config(
-    page_title="Financial Fraud Intelligence",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+""",
+    unsafe_allow_html=True,
 )
 
-# CUSTOM CSS
-st.markdown("""
-...
-""", unsafe_allow_html=True)
+
 # ============================================================
 # SESSION STATE
 # ============================================================
@@ -466,7 +429,7 @@ defaults = {
     "numeric_columns": None,
     "categorical_columns": None,
     "training_columns": None,
-    "training_means": None
+    "training_means": None,
 }
 
 for key, value in defaults.items():
@@ -480,19 +443,19 @@ for key, value in defaults.items():
 
 def load_file(uploaded_file):
 
-    if uploaded_file.name.lower().endswith(".csv"):
+    filename = uploaded_file.name.lower()
+
+    if filename.endswith(".csv"):
         return pd.read_csv(uploaded_file)
 
-    if uploaded_file.name.lower().endswith(
-        (".xlsx", ".xls")
-    ):
+    if filename.endswith((".xlsx", ".xls")):
         return pd.read_excel(uploaded_file)
 
     return None
 
 
 # ============================================================
-# UPDATED CLEAN DATAFRAME FUNCTION
+# CLEAN DATAFRAME
 # ============================================================
 
 def clean_dataframe(df):
@@ -502,10 +465,12 @@ def clean_dataframe(df):
     new_columns = []
 
     for column in df.columns:
+
         new_column = str(column).strip()
         new_column = new_column.replace(" ", "_")
         new_column = new_column.replace("-", "_")
         new_column = new_column.replace("/", "_")
+
         new_columns.append(new_column)
 
     df.columns = new_columns
@@ -514,6 +479,10 @@ def clean_dataframe(df):
 
     return df
 
+
+# ============================================================
+# TARGET DETECTION
+# ============================================================
 
 def detect_target(columns):
 
@@ -527,7 +496,7 @@ def detect_target(columns):
         "fraud_status",
         "target",
         "label",
-        "risk"
+        "risk",
     ]
 
     normalized = {
@@ -550,6 +519,10 @@ def detect_target(columns):
     return None
 
 
+# ============================================================
+# TARGET ENCODING
+# ============================================================
+
 def encode_target(series):
 
     if pd.api.types.is_numeric_dtype(series):
@@ -562,7 +535,7 @@ def encode_target(series):
 
             mapping = {
                 values[0]: 0,
-                values[1]: 1
+                values[1]: 1,
             }
 
             return series.map(mapping), mapping
@@ -585,7 +558,7 @@ def encode_target(series):
             "true",
             "positive",
             "suspicious",
-            "1"
+            "1",
         ]
 
         mapping = {}
@@ -602,6 +575,10 @@ def encode_target(series):
     return None, None
 
 
+# ============================================================
+# PREPROCESSOR
+# ============================================================
+
 def create_preprocessor(X):
 
     numeric_columns = X.select_dtypes(
@@ -616,14 +593,29 @@ def create_preprocessor(X):
         steps=[
             (
                 "imputer",
-                SimpleImputer(strategy="median")
+                SimpleImputer(strategy="median"),
             ),
             (
                 "scaler",
-                StandardScaler()
-            )
+                StandardScaler(),
+            ),
         ]
     )
+
+    # Compatibility with older/newer sklearn
+    try:
+
+        encoder = OneHotEncoder(
+            handle_unknown="ignore",
+            sparse_output=False,
+        )
+
+    except TypeError:
+
+        encoder = OneHotEncoder(
+            handle_unknown="ignore",
+            sparse=False,
+        )
 
     categorical_pipeline = Pipeline(
         steps=[
@@ -631,15 +623,12 @@ def create_preprocessor(X):
                 "imputer",
                 SimpleImputer(
                     strategy="most_frequent"
-                )
+                ),
             ),
             (
                 "encoder",
-                OneHotEncoder(
-                    handle_unknown="ignore",
-                    sparse_output=False
-                )
-            )
+                encoder,
+            ),
         ]
     )
 
@@ -651,7 +640,7 @@ def create_preprocessor(X):
             (
                 "numeric",
                 numeric_pipeline,
-                numeric_columns
+                numeric_columns,
             )
         )
 
@@ -661,7 +650,7 @@ def create_preprocessor(X):
             (
                 "categorical",
                 categorical_pipeline,
-                categorical_columns
+                categorical_columns,
             )
         )
 
@@ -672,17 +661,27 @@ def create_preprocessor(X):
     return preprocessor
 
 
+# ============================================================
+# FEATURE NAMES
+# ============================================================
+
 def get_feature_names(preprocessor):
 
     try:
         return preprocessor.get_feature_names_out()
 
     except Exception:
-
         return []
 
 
-def calculate_risk(probability, anomaly_score):
+# ============================================================
+# RISK CALCULATION
+# ============================================================
+
+def calculate_risk(
+    probability,
+    anomaly_score
+):
 
     ml_score = probability * 100
     anomaly_part = anomaly_score * 100
@@ -699,6 +698,10 @@ def calculate_risk(probability, anomaly_score):
     )
 
 
+# ============================================================
+# RISK CATEGORY
+# ============================================================
+
 def risk_category(score):
 
     if score >= 85:
@@ -713,13 +716,17 @@ def risk_category(score):
     return "LOW"
 
 
+# ============================================================
+# RISK SYMBOL
+# ============================================================
+
 def risk_symbol(category):
 
     symbols = {
         "CRITICAL": "🔴",
         "HIGH": "🟠",
         "MEDIUM": "🟡",
-        "LOW": "🟢"
+        "LOW": "🟢",
     }
 
     return symbols.get(
@@ -728,6 +735,10 @@ def risk_symbol(category):
     )
 
 
+# ============================================================
+# AMOUNT COLUMN
+# ============================================================
+
 def find_amount_column(columns):
 
     keywords = [
@@ -735,7 +746,7 @@ def find_amount_column(columns):
         "transaction_amount",
         "amt",
         "value",
-        "price"
+        "price",
     ]
 
     for column in columns:
@@ -749,6 +760,10 @@ def find_amount_column(columns):
 
     return None
 
+
+# ============================================================
+# TIME COLUMN
+# ============================================================
 
 def find_time_column(columns):
 
@@ -756,7 +771,7 @@ def find_time_column(columns):
         "time",
         "timestamp",
         "date",
-        "datetime"
+        "datetime",
     ]
 
     for column in columns:
@@ -771,32 +786,40 @@ def find_time_column(columns):
     return None
 
 
+# ============================================================
+# INVESTIGATION REASONS
+# ============================================================
+
 def generate_reasons(
     row,
     probability,
     anomaly_score,
     amount_column=None,
-    reference_amount=None
+    reference_amount=None,
 ):
 
     reasons = []
 
     if probability >= 0.80:
+
         reasons.append(
             "Very high ML fraud probability"
         )
 
     elif probability >= 0.60:
+
         reasons.append(
             "High ML fraud probability"
         )
 
     if anomaly_score >= 0.75:
+
         reasons.append(
             "Transaction behavior is highly anomalous"
         )
 
     elif anomaly_score >= 0.50:
+
         reasons.append(
             "Transaction behavior differs from normal patterns"
         )
@@ -834,7 +857,9 @@ def generate_reasons(
 # SIDEBAR
 # ============================================================
 
-st.sidebar.title("🛡️ FRAUD INTELLIGENCE")
+st.sidebar.title(
+    "🛡️ FRAUD INTELLIGENCE"
+)
 
 st.sidebar.caption(
     "AI-Powered Financial Risk Analytics"
@@ -845,8 +870,8 @@ uploaded_file = st.sidebar.file_uploader(
     type=[
         "csv",
         "xlsx",
-        "xls"
-    ]
+        "xls",
+    ],
 )
 
 
@@ -885,16 +910,22 @@ if uploaded_file is not None:
         )
 
 
+# ============================================================
+# LANDING PAGE
+# ============================================================
+
 if st.session_state.df is None:
 
     st.title(
         "🛡️ Financial Fraud Intelligence Platform"
     )
 
+    st.subheader(
+        "AI-Powered Fraud Detection & Risk Analytics"
+    )
+
     st.markdown(
         """
-        ### AI-Powered Fraud Detection & Risk Analytics
-
         This platform combines:
 
         **Machine Learning + Anomaly Detection + Risk Scoring
@@ -903,12 +934,12 @@ if st.session_state.df is None:
     )
 
     st.info(
-        "Upload your Zidio Financial Fraud dataset from the sidebar."
+        "Upload your financial fraud dataset from the sidebar."
     )
 
     st.markdown(
         """
-        ### Advanced capabilities
+        ### Advanced Capabilities
 
         🔹 Fraud probability prediction
 
@@ -935,6 +966,10 @@ if st.session_state.df is None:
     st.stop()
 
 
+# ============================================================
+# DATA
+# ============================================================
+
 df = st.session_state.df
 
 
@@ -952,11 +987,10 @@ if st.session_state.target in target_options:
         st.session_state.target
     )
 
-
 target = st.sidebar.selectbox(
     "Fraud / Target Column",
     target_options,
-    index=default_index
+    index=default_index,
 )
 
 st.session_state.target = target
@@ -1018,11 +1052,10 @@ normal_count = int(
 fraud_rate = (
     fraud_count
     /
-    total_transactions
+    max(total_transactions, 1)
     *
     100
 )
-
 
 amount_column = find_amount_column(
     df.columns
@@ -1046,31 +1079,29 @@ pages = [
     "🧪 What-If Analysis",
     "📈 Model Performance",
     "📡 Model Monitoring",
-    "📋 Dataset Explorer"
+    "📋 Dataset Explorer",
 ]
-
 
 page = st.sidebar.radio(
     "Navigation",
-    pages
+    pages,
 )
-
 
 st.sidebar.divider()
 
 st.sidebar.metric(
     "Transactions",
-    f"{total_transactions:,}"
+    f"{total_transactions:,}",
 )
 
 st.sidebar.metric(
     "Fraud Cases",
-    f"{fraud_count:,}"
+    f"{fraud_count:,}",
 )
 
 st.sidebar.metric(
     "Fraud Rate",
-    f"{fraud_rate:.3f}%"
+    f"{fraud_rate:.3f}%",
 )
 
 
@@ -1092,22 +1123,22 @@ if page == "🏠 Executive Intelligence":
 
     c1.metric(
         "Total Transactions",
-        f"{total_transactions:,}"
+        f"{total_transactions:,}",
     )
 
     c2.metric(
         "Fraud Transactions",
-        f"{fraud_count:,}"
+        f"{fraud_count:,}",
     )
 
     c3.metric(
         "Normal Transactions",
-        f"{normal_count:,}"
+        f"{normal_count:,}",
     )
 
     c4.metric(
         "Fraud Rate",
-        f"{fraud_rate:.3f}%"
+        f"{fraud_rate:.3f}%",
     )
 
     st.divider()
@@ -1116,27 +1147,27 @@ if page == "🏠 Executive Intelligence":
 
         total_value = pd.to_numeric(
             analysis_df[amount_column],
-            errors="coerce"
+            errors="coerce",
         ).sum()
 
         fraud_value = pd.to_numeric(
             analysis_df.loc[
                 analysis_df["Fraud_Label"] == 1,
-                amount_column
+                amount_column,
             ],
-            errors="coerce"
+            errors="coerce",
         ).sum()
 
         c1, c2 = st.columns(2)
 
         c1.metric(
             "Total Transaction Value",
-            f"{total_value:,.2f}"
+            f"{total_value:,.2f}",
         )
 
         c2.metric(
             "Fraud Transaction Value",
-            f"{fraud_value:,.2f}"
+            f"{fraud_value:,.2f}",
         )
 
     st.subheader(
@@ -1147,12 +1178,12 @@ if page == "🏠 Executive Intelligence":
         {
             "Type": [
                 "Normal",
-                "Fraud"
+                "Fraud",
             ],
             "Count": [
                 normal_count,
-                fraud_count
-            ]
+                fraud_count,
+            ],
         }
     )
 
@@ -1165,12 +1196,23 @@ if page == "🏠 Executive Intelligence":
             x="Type",
             y="Count",
             text="Count",
-            title="Normal vs Fraud"
+            title="Normal vs Fraud",
+            color="Type",
+            color_discrete_map={
+                "Normal": "#2563eb",
+                "Fraud": "#dc2626",
+            },
+        )
+
+        fig.update_layout(
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font_color="#111827",
         )
 
         st.plotly_chart(
             fig,
-            use_container_width=True
+            use_container_width=True,
         )
 
     with col2:
@@ -1180,12 +1222,23 @@ if page == "🏠 Executive Intelligence":
             names="Type",
             values="Count",
             hole=0.5,
-            title="Transaction Distribution"
+            title="Transaction Distribution",
+            color="Type",
+            color_discrete_map={
+                "Normal": "#2563eb",
+                "Fraud": "#dc2626",
+            },
+        )
+
+        fig.update_layout(
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font_color="#111827",
         )
 
         st.plotly_chart(
             fig,
-            use_container_width=True
+            use_container_width=True,
         )
 
     st.subheader(
@@ -1231,7 +1284,7 @@ elif page == "📊 Transaction Analytics":
 
         selected_column = st.selectbox(
             "Select transaction feature",
-            numeric_columns
+            numeric_columns,
         )
 
         col1, col2 = st.columns(2)
@@ -1243,12 +1296,22 @@ elif page == "📊 Transaction Analytics":
                 x=selected_column,
                 color="Fraud_Label",
                 nbins=50,
-                title=f"{selected_column} Distribution"
+                title=f"{selected_column} Distribution",
+                color_discrete_sequence=[
+                    "#2563eb",
+                    "#dc2626",
+                ],
+            )
+
+            fig.update_layout(
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                font_color="#111827",
             )
 
             st.plotly_chart(
                 fig,
-                use_container_width=True
+                use_container_width=True,
             )
 
         with col2:
@@ -1258,12 +1321,22 @@ elif page == "📊 Transaction Analytics":
                 x="Fraud_Label",
                 y=selected_column,
                 color="Fraud_Label",
-                title=f"{selected_column}: Normal vs Fraud"
+                title=f"{selected_column}: Normal vs Fraud",
+                color_discrete_sequence=[
+                    "#2563eb",
+                    "#dc2626",
+                ],
+            )
+
+            fig.update_layout(
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                font_color="#111827",
             )
 
             st.plotly_chart(
                 fig,
-                use_container_width=True
+                use_container_width=True,
             )
 
     st.subheader(
@@ -1281,12 +1354,18 @@ elif page == "📊 Transaction Analytics":
         fig = px.imshow(
             corr,
             aspect="auto",
-            title="Feature Correlation Matrix"
+            title="Feature Correlation Matrix",
+            color_continuous_scale="RdBu_r",
+        )
+
+        fig.update_layout(
+            paper_bgcolor="white",
+            font_color="#111827",
         )
 
         st.plotly_chart(
             fig,
-            use_container_width=True
+            use_container_width=True,
         )
 
     if time_column is not None:
@@ -1311,7 +1390,7 @@ elif page == "📊 Transaction Analytics":
 
                 temp["Parsed_Time"] = pd.to_datetime(
                     temp[time_column],
-                    errors="coerce"
+                    errors="coerce",
                 )
 
                 temp["Hour"] = (
@@ -1324,7 +1403,7 @@ elif page == "📊 Transaction Analytics":
 
             hourly.columns = [
                 "Hour",
-                "Fraud_Count"
+                "Fraud_Count",
             ]
 
             fig = px.line(
@@ -1332,12 +1411,18 @@ elif page == "📊 Transaction Analytics":
                 x="Hour",
                 y="Fraud_Count",
                 markers=True,
-                title="Fraud Activity by Hour"
+                title="Fraud Activity by Hour",
+            )
+
+            fig.update_layout(
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                font_color="#111827",
             )
 
             st.plotly_chart(
                 fig,
-                use_container_width=True
+                use_container_width=True,
             )
 
         except Exception:
@@ -1371,12 +1456,12 @@ elif page == "🚨 Fraud Pattern Intelligence":
 
             normal_mean = analysis_df.loc[
                 analysis_df["Fraud_Label"] == 0,
-                column
+                column,
             ].mean()
 
             fraud_mean = analysis_df.loc[
                 analysis_df["Fraud_Label"] == 1,
-                column
+                column,
             ].mean()
 
             if pd.notna(normal_mean) and pd.notna(
@@ -1392,7 +1477,7 @@ elif page == "🚨 Fraud Pattern Intelligence":
                         "Feature": column,
                         "Normal Mean": normal_mean,
                         "Fraud Mean": fraud_mean,
-                        "Difference": difference
+                        "Difference": difference,
                     }
                 )
 
@@ -1402,12 +1487,12 @@ elif page == "🚨 Fraud Pattern Intelligence":
             fraud_features
         ).sort_values(
             "Difference",
-            ascending=False
+            ascending=False,
         )
 
         st.dataframe(
             feature_df.head(20),
-            use_container_width=True
+            use_container_width=True,
         )
 
         fig = px.bar(
@@ -1417,12 +1502,18 @@ elif page == "🚨 Fraud Pattern Intelligence":
             x="Difference",
             y="Feature",
             orientation="h",
-            title="Features Showing Strongest Fraud/Normal Difference"
+            title="Features Showing Strongest Fraud/Normal Difference",
+        )
+
+        fig.update_layout(
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font_color="#111827",
         )
 
         st.plotly_chart(
             fig,
-            use_container_width=True
+            use_container_width=True,
         )
 
     if amount_column is not None:
@@ -1433,7 +1524,7 @@ elif page == "🚨 Fraud Pattern Intelligence":
 
         amount_series = pd.to_numeric(
             analysis_df[amount_column],
-            errors="coerce"
+            errors="coerce",
         )
 
         normal_amount = amount_series[
@@ -1449,24 +1540,24 @@ elif page == "🚨 Fraud Pattern Intelligence":
                 "Metric": [
                     "Average",
                     "Median",
-                    "Maximum"
+                    "Maximum",
                 ],
                 "Normal": [
                     normal_amount.mean(),
                     normal_amount.median(),
-                    normal_amount.max()
+                    normal_amount.max(),
                 ],
                 "Fraud": [
                     fraud_amount.mean(),
                     fraud_amount.median(),
-                    fraud_amount.max()
-                ]
+                    fraud_amount.max(),
+                ],
             }
         )
 
         st.dataframe(
             metrics,
-            use_container_width=True
+            use_container_width=True,
         )
 
 
@@ -1502,7 +1593,7 @@ elif page == "🤖 AI Risk Engine":
 
     if st.button(
         "🚀 Train Advanced Fraud Engine",
-        use_container_width=True
+        use_container_width=True,
     ):
 
         with st.spinner(
@@ -1512,7 +1603,7 @@ elif page == "🤖 AI Risk Engine":
             X = analysis_df.drop(
                 columns=[
                     target,
-                    "Fraud_Label"
+                    "Fraud_Label",
                 ]
             )
 
@@ -1534,7 +1625,7 @@ elif page == "🤖 AI Risk Engine":
                     y,
                     test_size=0.20,
                     random_state=42,
-                    stratify=y
+                    stratify=y,
                 )
             )
 
@@ -1563,7 +1654,7 @@ elif page == "🤖 AI Risk Engine":
                 X_train_balanced, y_train_balanced = (
                     smote.fit_resample(
                         X_train_processed,
-                        y_train
+                        y_train,
                     )
                 )
 
@@ -1581,12 +1672,12 @@ elif page == "🤖 AI Risk Engine":
                 min_samples_split=2,
                 random_state=42,
                 n_jobs=-1,
-                class_weight="balanced"
+                class_weight="balanced",
             )
 
             model.fit(
                 X_train_balanced,
-                y_train_balanced
+                y_train_balanced,
             )
 
             predictions = model.predict(
@@ -1601,7 +1692,7 @@ elif page == "🤖 AI Risk Engine":
                 n_estimators=150,
                 contamination="auto",
                 random_state=42,
-                n_jobs=-1
+                n_jobs=-1,
             )
 
             anomaly_model.fit(
@@ -1634,12 +1725,12 @@ elif page == "🤖 AI Risk Engine":
             risk_scores = [
                 calculate_risk(
                     probability,
-                    anomaly
+                    anomaly,
                 )
                 for probability, anomaly
                 in zip(
                     probabilities,
-                    anomaly_scores
+                    anomaly_scores,
                 )
             ]
 
@@ -1650,31 +1741,37 @@ elif page == "🤖 AI Risk Engine":
 
             accuracy = accuracy_score(
                 y_test,
-                predictions
+                predictions,
             )
 
             precision = precision_score(
                 y_test,
                 predictions,
-                zero_division=0
+                zero_division=0,
             )
 
             recall = recall_score(
                 y_test,
                 predictions,
-                zero_division=0
+                zero_division=0,
             )
 
             f1 = f1_score(
                 y_test,
                 predictions,
-                zero_division=0
+                zero_division=0,
             )
 
-            auc = roc_auc_score(
-                y_test,
-                probabilities
-            )
+            try:
+
+                auc = roc_auc_score(
+                    y_test,
+                    probabilities,
+                )
+
+            except Exception:
+
+                auc = 0.0
 
             metrics = pd.DataFrame(
                 {
@@ -1683,15 +1780,15 @@ elif page == "🤖 AI Risk Engine":
                         "Precision",
                         "Recall",
                         "F1 Score",
-                        "ROC-AUC"
+                        "ROC-AUC",
                     ],
                     "Score": [
                         accuracy,
                         precision,
                         recall,
                         f1,
-                        auc
-                    ]
+                        auc,
+                    ],
                 }
             )
 
@@ -1703,7 +1800,7 @@ elif page == "🤖 AI Risk Engine":
                 "probabilities": probabilities,
                 "anomaly_scores": anomaly_scores,
                 "risk_scores": risk_scores,
-                "categories": categories
+                "categories": categories,
             }
 
             st.session_state.preprocessor = (
@@ -1752,18 +1849,18 @@ elif page == "🤖 AI Risk Engine":
 
             if hasattr(
                 model,
-                "feature_importances_"
+                "feature_importances_",
             ):
 
                 importance_df = pd.DataFrame(
                     {
                         "Feature": feature_names,
                         "Importance":
-                            model.feature_importances_
+                            model.feature_importances_,
                     }
                 ).sort_values(
                     "Importance",
-                    ascending=False
+                    ascending=False,
                 )
 
                 st.session_state.feature_importance = (
@@ -1772,17 +1869,17 @@ elif page == "🤖 AI Risk Engine":
 
             joblib.dump(
                 model,
-                "advanced_fraud_model.pkl"
+                "advanced_fraud_model.pkl",
             )
 
             joblib.dump(
                 preprocessor,
-                "advanced_preprocessor.pkl"
+                "advanced_preprocessor.pkl",
             )
 
             joblib.dump(
                 anomaly_model,
-                "anomaly_model.pkl"
+                "anomaly_model.pkl",
             )
 
             st.success(
@@ -1825,22 +1922,22 @@ elif page == "🤖 AI Risk Engine":
 
         c1.metric(
             "🔴 Critical",
-            critical
+            critical,
         )
 
         c2.metric(
             "🟠 High",
-            high
+            high,
         )
 
         c3.metric(
             "🟡 Medium",
-            medium
+            medium,
         )
 
         c4.metric(
             "🟢 Low",
-            low
+            low,
         )
 
         st.subheader(
@@ -1853,14 +1950,14 @@ elif page == "🤖 AI Risk Engine":
                     "Critical",
                     "High",
                     "Medium",
-                    "Low"
+                    "Low",
                 ],
                 "Count": [
                     critical,
                     high,
                     medium,
-                    low
-                ]
+                    low,
+                ],
             }
         )
 
@@ -1869,12 +1966,25 @@ elif page == "🤖 AI Risk Engine":
             x="Risk",
             y="Count",
             text="Count",
-            title="AI Risk Distribution"
+            title="AI Risk Distribution",
+            color="Risk",
+            color_discrete_map={
+                "Critical": "#dc2626",
+                "High": "#f97316",
+                "Medium": "#eab308",
+                "Low": "#22c55e",
+            },
+        )
+
+        fig.update_layout(
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font_color="#111827",
         )
 
         st.plotly_chart(
             fig,
-            use_container_width=True
+            use_container_width=True,
         )
 
 
@@ -1928,14 +2038,14 @@ elif page == "🔍 Investigation Center":
         result["Risk Score"]
         .rank(
             ascending=False,
-            method="first"
+            method="first",
         )
         .astype(int)
     )
 
     result = result.sort_values(
         "Risk Score",
-        ascending=False
+        ascending=False,
     )
 
     st.subheader(
@@ -1948,12 +2058,12 @@ elif page == "🔍 Investigation Center":
             "CRITICAL",
             "HIGH",
             "MEDIUM",
-            "LOW"
+            "LOW",
         ],
         default=[
             "CRITICAL",
-            "HIGH"
-        ]
+            "HIGH",
+        ],
     )
 
     filtered = result[
@@ -1964,14 +2074,14 @@ elif page == "🔍 Investigation Center":
 
     st.dataframe(
         filtered.head(100),
-        use_container_width=True
+        use_container_width=True,
     )
 
     st.download_button(
         "📥 Download Investigation Queue",
         filtered.to_csv(index=False),
         "fraud_investigation_queue.csv",
-        "text/csv"
+        "text/csv",
     )
 
     st.divider()
@@ -1980,7 +2090,7 @@ elif page == "🔍 Investigation Center":
 
         selected_index = st.selectbox(
             "Select transaction for investigation",
-            result.index.tolist()
+            result.index.tolist(),
         )
 
         selected = result.loc[
@@ -2015,22 +2125,22 @@ elif page == "🔍 Investigation Center":
 
         c1.metric(
             "Fraud Probability",
-            f"{probability * 100:.2f}%"
+            f"{probability * 100:.2f}%",
         )
 
         c2.metric(
             "Anomaly Score",
-            f"{anomaly * 100:.2f}%"
+            f"{anomaly * 100:.2f}%",
         )
 
         c3.metric(
             "Final Risk Score",
-            f"{risk:.1f}/100"
+            f"{risk:.1f}/100",
         )
 
         c4.metric(
             "Risk Level",
-            f"{risk_symbol(category)} {category}"
+            f"{risk_symbol(category)} {category}",
         )
 
         reference_amount = None
@@ -2042,12 +2152,13 @@ elif page == "🔍 Investigation Center":
                 reference_amount = pd.to_numeric(
                     analysis_df.loc[
                         analysis_df["Fraud_Label"] == 0,
-                        amount_column
+                        amount_column,
                     ],
-                    errors="coerce"
+                    errors="coerce",
                 ).median()
 
             except Exception:
+
                 reference_amount = None
 
         reasons = generate_reasons(
@@ -2055,7 +2166,7 @@ elif page == "🔍 Investigation Center":
             probability,
             anomaly,
             amount_column,
-            reference_amount
+            reference_amount,
         )
 
         st.subheader(
@@ -2070,7 +2181,7 @@ elif page == "🔍 Investigation Center":
 
         if category in [
             "CRITICAL",
-            "HIGH"
+            "HIGH",
         ]:
 
             st.error(
@@ -2133,7 +2244,7 @@ elif page == "🧪 What-If Analysis":
 
                 base[column] = pd.to_numeric(
                     df[column],
-                    errors="coerce"
+                    errors="coerce",
                 ).median()
 
             else:
@@ -2167,7 +2278,7 @@ elif page == "🧪 What-If Analysis":
 
         values = pd.to_numeric(
             df[column],
-            errors="coerce"
+            errors="coerce",
         ).dropna()
 
         if len(values) == 0:
@@ -2192,14 +2303,14 @@ elif page == "🧪 What-If Analysis":
                 np.clip(
                     values.median(),
                     min_value,
-                    max_value
+                    max_value,
                 )
-            )
+            ),
         )
 
     if st.button(
         "🔮 Calculate New Risk",
-        use_container_width=True
+        use_container_width=True,
     ):
 
         input_row = base.copy()
@@ -2233,17 +2344,15 @@ elif page == "🧪 What-If Analysis":
 
         anomaly_score = float(
             np.clip(
-                (
-                    anomaly_raw + 0.5
-                ),
+                anomaly_raw + 0.5,
                 0,
-                1
+                1,
             )
         )
 
         risk = calculate_risk(
             probability,
-            anomaly_score
+            anomaly_score,
         )
 
         category = risk_category(
@@ -2256,17 +2365,17 @@ elif page == "🧪 What-If Analysis":
 
         c1.metric(
             "Fraud Probability",
-            f"{probability * 100:.2f}%"
+            f"{probability * 100:.2f}%",
         )
 
         c2.metric(
             "Anomaly Score",
-            f"{anomaly_score * 100:.2f}%"
+            f"{anomaly_score * 100:.2f}%",
         )
 
         c3.metric(
             "AI Risk Score",
-            f"{risk:.1f}/100"
+            f"{risk:.1f}/100",
         )
 
         st.subheader(
@@ -2283,14 +2392,40 @@ elif page == "🧪 What-If Analysis":
                 gauge={
                     "axis": {
                         "range": [0, 100]
-                    }
-                }
+                    },
+                    "bar": {
+                        "color": "#2563eb"
+                    },
+                    "steps": [
+                        {
+                            "range": [0, 40],
+                            "color": "#dcfce7",
+                        },
+                        {
+                            "range": [40, 70],
+                            "color": "#fef9c3",
+                        },
+                        {
+                            "range": [70, 85],
+                            "color": "#ffedd5",
+                        },
+                        {
+                            "range": [85, 100],
+                            "color": "#fee2e2",
+                        },
+                    ],
+                },
             )
+        )
+
+        gauge.update_layout(
+            paper_bgcolor="white",
+            font_color="#111827",
         )
 
         st.plotly_chart(
             gauge,
-            use_container_width=True
+            use_container_width=True,
         )
 
 
@@ -2326,64 +2461,70 @@ elif page == "📈 Model Performance":
 
     accuracy = accuracy_score(
         y_test,
-        predictions
+        predictions,
     )
 
     precision = precision_score(
         y_test,
         predictions,
-        zero_division=0
+        zero_division=0,
     )
 
     recall = recall_score(
         y_test,
         predictions,
-        zero_division=0
+        zero_division=0,
     )
 
     f1 = f1_score(
         y_test,
         predictions,
-        zero_division=0
+        zero_division=0,
     )
 
-    auc = roc_auc_score(
-        y_test,
-        probabilities
-    )
+    try:
+
+        auc = roc_auc_score(
+            y_test,
+            probabilities,
+        )
+
+    except Exception:
+
+        auc = 0.0
 
     c1, c2, c3, c4, c5 = st.columns(5)
 
     c1.metric(
         "Accuracy",
-        f"{accuracy:.3f}"
+        f"{accuracy:.3f}",
     )
 
     c2.metric(
         "Precision",
-        f"{precision:.3f}"
+        f"{precision:.3f}",
     )
 
     c3.metric(
         "Recall",
-        f"{recall:.3f}"
+        f"{recall:.3f}",
     )
 
     c4.metric(
         "F1 Score",
-        f"{f1:.3f}"
+        f"{f1:.3f}",
     )
 
     c5.metric(
         "ROC-AUC",
-        f"{auc:.3f}"
+        f"{auc:.3f}",
     )
 
     st.divider()
 
     cm = confusion_matrix(
         y_test,
-        predictions
+        predictions,
     )
 
     st.subheader(
@@ -2395,18 +2536,24 @@ elif page == "📈 Model Performance":
         text_auto=True,
         x=[
             "Predicted Normal",
-            "Predicted Fraud"
+            "Predicted Fraud",
         ],
         y=[
             "Actual Normal",
-            "Actual Fraud"
+            "Actual Fraud",
         ],
-        title="Fraud Detection Confusion Matrix"
+        title="Fraud Detection Confusion Matrix",
+        color_continuous_scale="Blues",
+    )
+
+    fig.update_layout(
+        paper_bgcolor="white",
+        font_color="#111827",
     )
 
     st.plotly_chart(
         fig,
-        use_container_width=True
+        use_container_width=True,
     )
 
     st.subheader(
@@ -2415,7 +2562,7 @@ elif page == "📈 Model Performance":
 
     fpr, tpr, thresholds = roc_curve(
         y_test,
-        probabilities
+        probabilities,
     )
 
     fig = go.Figure()
@@ -2425,7 +2572,11 @@ elif page == "📈 Model Performance":
             x=fpr,
             y=tpr,
             mode="lines",
-            name=f"Random Forest AUC = {auc:.3f}"
+            name=f"Random Forest AUC = {auc:.3f}",
+            line={
+                "color": "#2563eb",
+                "width": 3,
+            },
         )
     )
 
@@ -2434,19 +2585,26 @@ elif page == "📈 Model Performance":
             x=[0, 1],
             y=[0, 1],
             mode="lines",
-            name="Random Baseline"
+            name="Random Baseline",
+            line={
+                "color": "#9ca3af",
+                "dash": "dash",
+            },
         )
     )
 
     fig.update_layout(
         title="ROC Curve",
         xaxis_title="False Positive Rate",
-        yaxis_title="True Positive Rate"
+        yaxis_title="True Positive Rate",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        font_color="#111827",
     )
 
     st.plotly_chart(
         fig,
-        use_container_width=True
+        use_container_width=True,
     )
 
     st.subheader(
@@ -2472,12 +2630,18 @@ elif page == "📈 Model Performance":
             x="Importance",
             y="Feature",
             orientation="h",
-            title="Top Fraud Detection Features"
+            title="Top Fraud Detection Features",
+        )
+
+        fig.update_layout(
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font_color="#111827",
         )
 
         st.plotly_chart(
             fig,
-            use_container_width=True
+            use_container_width=True,
         )
 
     st.subheader(
@@ -2488,7 +2652,7 @@ elif page == "📈 Model Performance":
         y_test,
         predictions,
         output_dict=True,
-        zero_division=0
+        zero_division=0,
     )
 
     report_df = pd.DataFrame(
@@ -2497,7 +2661,7 @@ elif page == "📈 Model Performance":
 
     st.dataframe(
         report_df,
-        use_container_width=True
+        use_container_width=True,
     )
 
 
@@ -2531,7 +2695,7 @@ elif page == "📡 Model Monitoring":
         training_means.index
     ].apply(
         pd.to_numeric,
-        errors="coerce"
+        errors="coerce",
     ).mean()
 
     drift_rows = []
@@ -2584,7 +2748,7 @@ elif page == "📡 Model Monitoring":
                 "Training Mean": train_value,
                 "Current Mean": current_value,
                 "Drift %": drift_percentage,
-                "Status": status
+                "Status": status,
             }
         )
 
@@ -2594,12 +2758,12 @@ elif page == "📡 Model Monitoring":
             drift_rows
         ).sort_values(
             "Drift %",
-            ascending=False
+            ascending=False,
         )
 
         st.dataframe(
             drift_df,
-            use_container_width=True
+            use_container_width=True,
         )
 
         fig = px.bar(
@@ -2607,12 +2771,18 @@ elif page == "📡 Model Monitoring":
             x="Drift %",
             y="Feature",
             orientation="h",
-            title="Top Feature Distribution Changes"
+            title="Top Feature Distribution Changes",
+        )
+
+        fig.update_layout(
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font_color="#111827",
         )
 
         st.plotly_chart(
             fig,
-            use_container_width=True
+            use_container_width=True,
         )
 
     st.info(
@@ -2636,22 +2806,22 @@ elif page == "📋 Dataset Explorer":
 
     c1.metric(
         "Rows",
-        f"{df.shape[0]:,}"
+        f"{df.shape[0]:,}",
     )
 
     c2.metric(
         "Columns",
-        df.shape[1]
+        df.shape[1],
     )
 
     c3.metric(
         "Duplicates",
-        f"{df.duplicated().sum():,}"
+        f"{df.duplicated().sum():,}",
     )
 
     c4.metric(
         "Missing Values",
-        f"{df.isnull().sum().sum():,}"
+        f"{df.isnull().sum().sum():,}",
     )
 
     st.subheader(
@@ -2660,7 +2830,7 @@ elif page == "📋 Dataset Explorer":
 
     st.dataframe(
         df.head(100),
-        use_container_width=True
+        use_container_width=True,
     )
 
     st.subheader(
@@ -2681,13 +2851,13 @@ elif page == "📋 Dataset Explorer":
             "Unique": [
                 df[c].nunique()
                 for c in df.columns
-            ]
+            ],
         }
     )
 
     st.dataframe(
         info,
-        use_container_width=True
+        use_container_width=True,
     )
 
     st.subheader(
@@ -2698,14 +2868,12 @@ elif page == "📋 Dataset Explorer":
         df.describe(
             include="all"
         ).transpose(),
-        use_container_width=True
+        use_container_width=True,
     )
 
     st.download_button(
         "📥 Download Dataset",
         df.to_csv(index=False),
         "financial_fraud_dataset.csv",
-        "text/csv"
+        "text/csv",
     )
-
-
