@@ -1261,19 +1261,60 @@ page = st.sidebar.radio(
 
 st.sidebar.divider()
 
-st.sidebar.metric(
-    "Transactions",
-    f"{total_transactions:,}",
-)
+# ============================================================
+# SIDEBAR KPI CARDS
+# Use explicit HTML cards instead of st.sidebar.metric so the
+# values remain visible with the custom dark-sidebar CSS.
+# ============================================================
 
-st.sidebar.metric(
-    "Fraud Cases",
-    f"{fraud_count:,}",
-)
+st.sidebar.markdown(
+    f"""
+    <div style="
+        background:#ffffff;
+        border-radius:14px;
+        padding:18px 20px;
+        margin:10px 0;
+        box-shadow:0 3px 12px rgba(0,0,0,0.12);
+    ">
+        <div style="color:#6b7280;font-size:14px;font-weight:700;margin-bottom:8px;">
+            Transactions
+        </div>
+        <div style="color:#111827;font-size:28px;font-weight:800;line-height:1.15;">
+            {total_transactions:,}
+        </div>
+    </div>
 
-st.sidebar.metric(
-    "Fraud Rate",
-    f"{fraud_rate:.3f}%",
+    <div style="
+        background:#ffffff;
+        border-radius:14px;
+        padding:18px 20px;
+        margin:10px 0;
+        box-shadow:0 3px 12px rgba(0,0,0,0.12);
+    ">
+        <div style="color:#6b7280;font-size:14px;font-weight:700;margin-bottom:8px;">
+            Fraud Cases
+        </div>
+        <div style="color:#dc2626;font-size:28px;font-weight:800;line-height:1.15;">
+            {fraud_count:,}
+        </div>
+    </div>
+
+    <div style="
+        background:#ffffff;
+        border-radius:14px;
+        padding:18px 20px;
+        margin:10px 0 16px 0;
+        box-shadow:0 3px 12px rgba(0,0,0,0.12);
+    ">
+        <div style="color:#6b7280;font-size:14px;font-weight:700;margin-bottom:8px;">
+            Fraud Rate
+        </div>
+        <div style="color:#2563eb;font-size:28px;font-weight:800;line-height:1.15;">
+            {fraud_rate:.2f}%
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 
