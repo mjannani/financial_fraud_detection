@@ -194,6 +194,34 @@ h6 {
 
 
 /* =========================================================
+   SIDEBAR CONTENT VISIBILITY
+   ========================================================= */
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
+    color: #ffffff !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] span {
+    color: #ffffff !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] label,
+[data-testid="stSidebar"] [data-testid="stRadio"] label p {
+    color: #ffffff !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stSelectbox"] label,
+[data-testid="stSidebar"] [data-testid="stSelectbox"] label p {
+    color: #ffffff !important;
+}
+
+/* Keep sidebar widgets visible and readable */
+[data-testid="stSidebarContent"] {
+    background-color: #111827 !important;
+}
+
+/* =========================================================
    SIDEBAR INPUTS
    ========================================================= */
 
@@ -1263,55 +1291,23 @@ st.sidebar.divider()
 
 # ============================================================
 # SIDEBAR KPI CARDS
-# Use explicit HTML cards instead of st.sidebar.metric so the
-# values remain visible with the custom dark-sidebar CSS.
 # ============================================================
 
+# These are deliberately rendered as HTML cards so the numbers are
+# independent of Streamlit's metric CSS and remain visible.
 st.sidebar.markdown(
     f"""
-    <div style="
-        background:#ffffff;
-        border-radius:14px;
-        padding:18px 20px;
-        margin:10px 0;
-        box-shadow:0 3px 12px rgba(0,0,0,0.12);
-    ">
-        <div style="color:#6b7280;font-size:14px;font-weight:700;margin-bottom:8px;">
-            Transactions
-        </div>
-        <div style="color:#111827;font-size:28px;font-weight:800;line-height:1.15;">
-            {total_transactions:,}
-        </div>
+    <div style="background:#ffffff;border-radius:12px;padding:14px 16px;margin:8px 0;">
+        <div style="color:#6b7280;font-size:13px;font-weight:700;">Transactions</div>
+        <div style="color:#111827;font-size:25px;font-weight:800;margin-top:4px;">{total_transactions:,}</div>
     </div>
-
-    <div style="
-        background:#ffffff;
-        border-radius:14px;
-        padding:18px 20px;
-        margin:10px 0;
-        box-shadow:0 3px 12px rgba(0,0,0,0.12);
-    ">
-        <div style="color:#6b7280;font-size:14px;font-weight:700;margin-bottom:8px;">
-            Fraud Cases
-        </div>
-        <div style="color:#dc2626;font-size:28px;font-weight:800;line-height:1.15;">
-            {fraud_count:,}
-        </div>
+    <div style="background:#ffffff;border-radius:12px;padding:14px 16px;margin:8px 0;">
+        <div style="color:#6b7280;font-size:13px;font-weight:700;">Fraud Cases</div>
+        <div style="color:#dc2626;font-size:25px;font-weight:800;margin-top:4px;">{fraud_count:,}</div>
     </div>
-
-    <div style="
-        background:#ffffff;
-        border-radius:14px;
-        padding:18px 20px;
-        margin:10px 0 16px 0;
-        box-shadow:0 3px 12px rgba(0,0,0,0.12);
-    ">
-        <div style="color:#6b7280;font-size:14px;font-weight:700;margin-bottom:8px;">
-            Fraud Rate
-        </div>
-        <div style="color:#2563eb;font-size:28px;font-weight:800;line-height:1.15;">
-            {fraud_rate:.2f}%
-        </div>
+    <div style="background:#ffffff;border-radius:12px;padding:14px 16px;margin:8px 0 16px 0;">
+        <div style="color:#6b7280;font-size:13px;font-weight:700;">Fraud Rate</div>
+        <div style="color:#2563eb;font-size:25px;font-weight:800;margin-top:4px;">{fraud_rate:.2f}%</div>
     </div>
     """,
     unsafe_allow_html=True,
