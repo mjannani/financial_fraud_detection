@@ -216,6 +216,35 @@ h6 {
     color: #ffffff !important;
 }
 
+/* Sidebar KPI cards: keep their text visible despite the global sidebar div rule */
+[data-testid="stSidebar"] .sidebar-kpi-card {
+    background: #ffffff !important;
+    border-radius: 12px !important;
+    padding: 14px 16px !important;
+    margin: 8px 0 !important;
+}
+
+[data-testid="stSidebar"] .sidebar-kpi-card .kpi-label {
+    color: #4b5563 !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+
+[data-testid="stSidebar"] .sidebar-kpi-card .kpi-value {
+    color: #111827 !important;
+    font-size: 25px !important;
+    font-weight: 800 !important;
+    margin-top: 4px !important;
+}
+
+[data-testid="stSidebar"] .sidebar-kpi-card .kpi-fraud {
+    color: #dc2626 !important;
+}
+
+[data-testid="stSidebar"] .sidebar-kpi-card .kpi-rate {
+    color: #2563eb !important;
+}
+
 /* Keep sidebar widgets visible and readable */
 [data-testid="stSidebarContent"] {
     background-color: #111827 !important;
@@ -1297,17 +1326,17 @@ st.sidebar.divider()
 # independent of Streamlit's metric CSS and remain visible.
 st.sidebar.markdown(
     f"""
-    <div style="background:#ffffff;border-radius:12px;padding:14px 16px;margin:8px 0;">
-        <div style="color:#6b7280;font-size:13px;font-weight:700;">Transactions</div>
-        <div style="color:#111827;font-size:25px;font-weight:800;margin-top:4px;">{total_transactions:,}</div>
+    <div class="sidebar-kpi-card">
+        <div class="kpi-label">Transactions</div>
+        <div class="kpi-value">{total_transactions:,}</div>
     </div>
-    <div style="background:#ffffff;border-radius:12px;padding:14px 16px;margin:8px 0;">
-        <div style="color:#6b7280;font-size:13px;font-weight:700;">Fraud Cases</div>
-        <div style="color:#dc2626;font-size:25px;font-weight:800;margin-top:4px;">{fraud_count:,}</div>
+    <div class="sidebar-kpi-card">
+        <div class="kpi-label">Fraud Cases</div>
+        <div class="kpi-value kpi-fraud">{fraud_count:,}</div>
     </div>
-    <div style="background:#ffffff;border-radius:12px;padding:14px 16px;margin:8px 0 16px 0;">
-        <div style="color:#6b7280;font-size:13px;font-weight:700;">Fraud Rate</div>
-        <div style="color:#2563eb;font-size:25px;font-weight:800;margin-top:4px;">{fraud_rate:.2f}%</div>
+    <div class="sidebar-kpi-card" style="margin-bottom:16px !important;">
+        <div class="kpi-label">Fraud Rate</div>
+        <div class="kpi-value kpi-rate">{fraud_rate:.2f}%</div>
     </div>
     """,
     unsafe_allow_html=True,
